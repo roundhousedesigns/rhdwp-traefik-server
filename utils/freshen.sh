@@ -4,9 +4,11 @@
 
 set -e
 
-parent=../
+script_path=$(realpath "$0")
+utils_path=$(dirname "${script_path}")
+www_path=$(dirname "${utils_path}")/www
 
-for d in "${parent}"/www/*; do
+for d in "${www_path}"/*; do
 	dir="${d##*/}"
 
 	echo "UPDATE ${dir}"
