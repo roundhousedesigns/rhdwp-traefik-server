@@ -1,0 +1,11 @@
+#!/bin/bash
+
+for d in /srv/www/*; do
+	if [ -d "$d" ]; then
+		cd "$d" || exit
+		docker-compose run --rm wp-cli plugin update --all
+		docker-compose run --rm wp-cli theme update --all
+		docker-compose run --rm wp-cli core update
+		cd /srv/www || exit
+	fi
+done
