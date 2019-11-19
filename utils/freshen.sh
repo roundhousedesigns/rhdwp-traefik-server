@@ -1,23 +1,23 @@
 #!/bin/bash
 
-# Do not process these folders in /srv/www/
+# set -x
 
-docker pull wordpress:latest
+set -e
 
-for d in /srv/www/*; do
+parent=../
+
+for d in "${parent}"/www/*; do
 	dir="${d##*/}"
 
-	echo "UPDATE $dir"
-	cd "$d" || exit
-	echo "$d: Pulling from remote"
-	git pull -q
+	echo "UPDATE ${dir}"
+	echo "${dir}: Pulling from remote"
+	git -C "${d}" pull -q
 	
 	# Rebuild
-	bash build.sh -r
+	bash "${d}"/build.sh -r
 
 	# shuffle salts (bug in docker wordpress)
 	# docker-compose run --rm wp-cli config shuffle-salts
 
-	cd /srv/www || exit
 done
 docker system prune --volumes -f
