@@ -1,5 +1,4 @@
-log/*
 .secrets
+log/*
 www/*
 traefik/acme.json
-cli/.cache
