@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Create acme.json for LetsEncrypt storage
-sudo touch ./traefik/acme.json
-sudo chown www-data:www-data ./traefik/acme.json
-sudo chmod 600 ./traefik/acme.json
+# LetsEncrypt storage
+acme=./traefik/acme.json
+if [[ ! -f "${acme}" ]]; then
+  sudo touch "${acme}"
+  sudo chown www-data:www-data "${acme}"
+  sudo chmod 600 "${acme}"
+fi
+
 
 # Start traefik
 docker-compose -f ./traefik/docker-compose.yml up -d
-
-# Die, and kill yourself
-rm "$0"
