@@ -8,6 +8,5 @@ if [[ ! -f "${acme}" ]]; then
   sudo chmod 600 "${acme}"
 fi
 
-
 # Start traefik
-docker-compose -f ./traefik/docker-compose.yml up -d
+docker-compose -f ./traefik/docker-compose.yml up -d --remove-orphans
