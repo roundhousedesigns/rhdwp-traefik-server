@@ -24,15 +24,14 @@ entryPoint = "https"
 onHostRule = true
   [acme.httpChallenge]
   entryPoint = "http"
+# ACME staging
+# [certificatesResolvers.letsencrypt.acme]
+#   caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 [docker]
 domain = "traefik.roundhouse-designs.com"
 watch = true
 network = "web"
-
-# ACME staging
-# [certificatesResolvers.letsencrypt.acme]
-#   caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 # [log]
 #   level = "DEBUG"

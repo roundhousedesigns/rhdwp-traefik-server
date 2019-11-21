@@ -3,12 +3,13 @@
 # Pull any update images
 # docker pull wordpress:latest
 
-for d in /srv/www/*; do
+for d in /srv/rhdwp/www/*; do
 	echo "Processing $dir"
 	cd "$d" || exit
 
 	# DO STUFF LIKE...
-	# docker-compose up -d --remove-orphans
+	# docker-compose run --rm wp-cli rewrite flush --hard
+	docker-compose up -d
 
-	cd /srv/www || exit
+	cd /srv/rhdwp/www || exit
 done
