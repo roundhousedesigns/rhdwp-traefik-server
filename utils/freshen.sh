@@ -6,11 +6,8 @@
 set -e
 
 wd=$(pwd)
-script_path=$(realpath "$0")
-utils_path=$(dirname "${script_path}")
-www_path=$(dirname "${utils_path}")/www
 
-for d in "${www_path}"/*; do
+for d in /srv/rhdwp/www/*; do
 	dir="${d##*/}"
 
 	echo "UPDATE ${dir}"
