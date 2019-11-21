@@ -7,7 +7,7 @@ if [ -z "$1" ]; then
 else
     sitepath="/srv/rhdwp/www/$1"
 
-    git clone -b traefik-node git@github.com:gaswirth/rhdwp-docker "${sitepath}"
+    git clone git@github.com:gaswirth/rhdwp-docker "${sitepath}"
     cd "${sitepath}" || exit
 
     ./build.sh
