@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -x
+set -e
+# set -x
 
 # export HOSTNAME
 export HOSTNAME=$(hostname)
