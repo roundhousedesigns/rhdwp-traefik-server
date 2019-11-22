@@ -15,7 +15,7 @@ if [[ ! -f "${acme}" ]]; then
 fi
 
 # Generate traefik.toml
-./traefik/build.sh
+./traefik/gen.sh
 
 # Start traefik
 docker-compose -f ./traefik/docker-compose.yml up -d --remove-orphans
