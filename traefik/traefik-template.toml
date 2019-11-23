@@ -12,22 +12,22 @@ defaultEntryPoints = ["http", "https"]
         users = ["admin:$apr1$6EMGK3WJ$1r1kQ91PV5n2aDbFCMJUh0"]
   [entryPoints.http]
     address = ":80"
-      [entryPoints.http.redirect]
-        entryPoint = "https"
-  [entryPoints.https]
-    address = ":443"
-      [entryPoints.https.tls]
+#      [entryPoints.http.redirect]
+#        entryPoint = "https"
+#  [entryPoints.https]
+#    address = ":443"
+#      [entryPoints.https.tls]
 
 [api]
 entrypoint="dashboard"
 
-[acme]
-email = "admin@roundhouse-designs.com"
-storage = "acme.json"
-entryPoint = "https"
-onHostRule = true
-  [acme.httpChallenge]
-  entryPoint = "http"
+#[acme]
+#email = "admin@roundhouse-designs.com"
+#storage = "acme.json"
+#entryPoint = "https"
+#onHostRule = true
+#  [acme.httpChallenge]
+#  entryPoint = "http"
 # ACME staging
 # [certificatesResolvers.letsencrypt.acme]
 #   caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
