@@ -2,7 +2,7 @@
 set -e
 
 ## Debug
-set -x
+# set -x
 
 secrets=./.secrets
 
