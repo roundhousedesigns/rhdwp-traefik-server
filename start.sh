@@ -51,7 +51,7 @@ fi
 # wp-cli permissions
 sudo chown -R www-data:www-data ./wp-cli
 
-# Generate secrets file
+# Generate secrets
 if [[ -r "${secrets}" ]]; then
 	# shellcheck disable=SC1091
 	# shellcheck source=/srv/rhdwp/.secrets
@@ -62,6 +62,9 @@ fi
 
 # Generate traefik.toml
 ./traefik/gen.sh
+
+# Create sites directory
+[[ ! -d ./www ]] && mkdir www
 
 # Start traefik
 docker-compose -f ./traefik/docker-compose.yml up -d --remove-orphans
