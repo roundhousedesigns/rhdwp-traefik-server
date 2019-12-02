@@ -1,11 +1,9 @@
 #!/bin/bash
+set -e
 
 ####
 ## Generates traefik.toml with correct hostname
 ####
-
-set -e
-
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 env_file="${parent_path}"/.env
 config_file="${parent_path}"/traefik.toml
