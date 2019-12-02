@@ -1,5 +1,5 @@
 ####
-## Use build.sh to generate traefik.toml
+## Use build.sh to generate traefik.toml file.
 ####
 
 defaultEntryPoints = ["http", "https"]
