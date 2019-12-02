@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 for d in /srv/rhdwp/www/*; do

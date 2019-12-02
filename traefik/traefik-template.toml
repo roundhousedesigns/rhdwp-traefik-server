@@ -1,5 +1,5 @@
 ####
-## Use build.sh to generate traefik.toml
+## Use build.sh to generate traefik.toml file.
 ####
 
 defaultEntryPoints = ["http", "https"]
@@ -20,8 +20,8 @@ defaultEntryPoints = ["http", "https"]
   [entryPoints.livereload]
     address = ":9999"
 
-[api]
-entrypoint="dashboard"
+# [api]
+# entrypoint="dashboard"
 
 [acme]
 email = "admin@roundhouse-designs.com"
