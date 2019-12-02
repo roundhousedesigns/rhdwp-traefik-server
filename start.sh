@@ -14,6 +14,9 @@ if [[ ! -f "${acme}" ]]; then
   sudo chmod 600 "${acme}"
 fi
 
+# wp-cli permissions
+sudo chown -R www-data:www-data ./wp-cli
+
 # Generate traefik.toml
 ./traefik/gen.sh
 
