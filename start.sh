@@ -1,10 +1,8 @@
 #!/bin/bash
-
 set -e
-# set -x
 
-# export HOSTNAME
-export HOSTNAME=$(hostname)
+## Debug
+# set -x
 
 # LetsEncrypt storage
 acme=./traefik/acme.json
