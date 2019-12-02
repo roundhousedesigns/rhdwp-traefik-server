@@ -2,7 +2,7 @@
 set -e
 
 ## Debug
-# set -x
+set -x
 
 secrets=./.secrets
 
@@ -42,7 +42,7 @@ write_secrets() {
 		WORDPRESS_SMTP_FROM="${WORDPRESS_SMTP_FROM}"
 	EOT
 	
-	sudo chmod 600 "${secrets}" && sudo chown www-data "${secrets}"
+	sudo chmod 660 "${secrets}" && sudo chgrp www-data "${secrets}"
 }
 
 # LetsEncrypt storage
@@ -73,4 +73,4 @@ fi
 [[ ! -d ./www ]] && mkdir www
 
 # Start traefik
-docker-compose -f ./traefik/docker-compose.yml up -d --remove-orphans
+( cd ./traefik && docker-compose up -d --remove-orphans )

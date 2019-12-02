@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x
 
 ####
 ## Generates traefik.toml with correct hostname
@@ -10,7 +11,8 @@ config_file="${parent_path}/traefik.toml"
 fqdn=$(hostname -f)
 
 # Generate hostname var (overwriting)
-echo "HOSTNAME=${fqdn}" > "${env_file}"
+echo "FQDN=${fqdn}" > "${env_file}"
+echo "HOSTNAME=$(hostname)" >> "${env_file}"
 
 cp "${parent_path}/traefik-template.toml" "${config_file}"
-sed -i "s/%%hostname%%/${fqdn}/" "${config_file}"
+sed -i "s/%%fqdn%%/${fqdn}/" "${config_file}"
