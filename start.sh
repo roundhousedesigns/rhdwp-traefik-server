@@ -2,12 +2,12 @@
 set -e
 
 ## Debug
-# set -x
+set -x
 
 secrets=./.secrets
 
-## Retrieve secrets
-handle_secrets() {
+## Verify secrets
+ask_secrets() {
 	# CloudFlare API Key, if not found in secrets
 	while [[ -z "${CF_API_KEY}" ]]; do
 		read -r -p "CloudFlare API Key: " CF_API_KEY
@@ -28,16 +28,21 @@ handle_secrets() {
 		read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
 	done
 	
+	# Yeah, I know
 	WORDPRESS_SMTP_FROM=postmaster@mail.roundhouse-designs.com
+}
 
-	## Write to .secrets and lock it down
-	{
-		echo "CF_API_KEY=${CF_API_KEY}"; \
-		echo "MG_API_KEY=${MG_API_KEY}"; \
-		echo "DEV_SMTP_LOGIN=${DEV_SMTP_LOGIN}"; \
-		echo "DEV_SMTP_PASS=${DEV_SMTP_PASS}"; \
-		echo "WORDPRESS_SMTP_FROM=${WORDPRESS_SMTP_FROM}"
-	} > "${secrets}" && sudo chmod 600 "${secrets}" && sudo chown www-data "${secrets}"
+## Write to .secrets and lock it down
+write_secrets() {
+	sudo tee -a "${secrets}" > /dev/null <<-EOT
+		CF_API_KEY="${CF_API_KEY}"
+		MG_API_KEY="${MG_API_KEY}"
+		DEV_SMTP_LOGIN="${DEV_SMTP_LOGIN}"
+		DEV_SMTP_PASS="${DEV_SMTP_PASS}"
+		WORDPRESS_SMTP_FROM="${WORDPRESS_SMTP_FROM}"
+	EOT
+	
+	sudo chmod 600 "${secrets}" && sudo chown www-data "${secrets}"
 }
 
 # LetsEncrypt storage
@@ -57,7 +62,8 @@ if [[ -r "${secrets}" ]]; then
 	# shellcheck source=/srv/rhdwp/.secrets
 	source "${secrets}"
 else
-	handle_secrets
+	ask_secrets
+	write_secrets
 fi
 
 # Generate traefik.toml
