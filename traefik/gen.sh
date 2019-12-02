@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-set -x
 
 ####
 ## Generates traefik.toml with correct hostname

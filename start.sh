@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-## Debug
-set -x
-
 secrets=./.secrets
 
 ## Verify secrets
