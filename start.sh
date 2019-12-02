@@ -37,7 +37,7 @@ handle_secrets() {
 		echo "DEV_SMTP_LOGIN=${DEV_SMTP_LOGIN}"; \
 		echo "DEV_SMTP_PASS=${DEV_SMTP_PASS}"; \
 		echo "WORDPRESS_SMTP_FROM=${WORDPRESS_SMTP_FROM}"
-	} > "${secrets}" && sudo chmod 600 "${secrets}"
+	} > "${secrets}" && sudo chmod 600 "${secrets}" && sudo chown www-data "${secrets}"
 }
 
 # LetsEncrypt storage
