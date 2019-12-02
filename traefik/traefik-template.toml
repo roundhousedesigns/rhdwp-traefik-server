@@ -17,8 +17,8 @@ defaultEntryPoints = ["http", "https"]
   [entryPoints.https]
     address = ":443"
       [entryPoints.https.tls]
-  [entryPoints.livereload]
-    address = ":35729"
+  # [entryPoints.livereload]
+  #   address = ":35729"
 
 # [api]
 # entrypoint="dashboard"
