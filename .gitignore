@@ -1,6 +1,6 @@
 .secrets
 log/*
-www/
+www/*
 traefik/.env
 traefik/acme.json
 traefik/traefik.toml
