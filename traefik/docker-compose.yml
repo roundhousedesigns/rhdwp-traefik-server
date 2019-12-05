@@ -1,5 +1,3 @@
-## Use rhdwp/start.sh to generate docker-compose.yml
-
 version: '3.3'
 
 services:
@@ -7,8 +5,6 @@ services:
     image: 'traefik:1.7.2-alpine'
     labels:
     - traefik.enable=false
-    #  - traefik.frontend.rule=Host:monitor.$HOSTNAME.roundhouse-designs.com
-    #  - traefik.dashboard.port=8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik.toml:/traefik.toml
