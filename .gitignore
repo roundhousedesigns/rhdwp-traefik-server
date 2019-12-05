@@ -3,5 +3,7 @@ log/*
 www/*
 traefik/.env
 traefik/acme.json
-traefik/traefik.toml
-wp-cli/cache
+traefik/docker-compose.yml
+
+wp-cli/*
+!wp-cli/config.yml
