@@ -26,9 +26,9 @@ services:
     #   - "traefik.http.routers.dashboard-https.entrypoints=https"
     #   - "traefik.http.routers.dashboard-https.tls=true"
     #   - "traefik.http.routers.dashboard-https.tls.certresolver=http"
-    #   - "traefik.http.routers.dashboard-https.middlewares=traefik-auth"
+    #   - "traefik.http.routers.dashboard-https.middlewares=dashboard-auth"
     #   - "traefik.http.routers.dashboard-https.rule=Host(`monitor.%%domain%%`)"
-    #   - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$2y$$05$$7t25C0myBoWErPjCUsEDPe/TKLjdiywW4HchSJiKNmK5nZk2saVLW"
+    #   - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$$2y$$05$$7t25C0myBoWErPjCUsEDPe/TKLjdiywW4HchSJiKNmK5nZk2saVLW"
     #   - "traefik.http.routers.dashboard.middlewares=dashboard-https-redirect"
     #   - "traefik.http.routers.dashboard-https.service=api@internal"
 
