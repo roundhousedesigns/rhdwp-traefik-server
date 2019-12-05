@@ -1,7 +1,9 @@
 #!/bin/bash
-set -e
+# Sets up and (re)starts the main traefik server stack. Also used to rebuild config files.
+# options:
+#		-f : Run docker-compose up with --force-recreate flag
 
-secrets=./.secrets
+set -e
 
 ## Verify secrets
 ask_secrets() {
@@ -42,6 +44,20 @@ write_secrets() {
 	sudo chmod 600 "$secrets" && sudo chown www-data:www-data "$secrets"
 }
 
+while getopts "f" opt; do
+	case "$opt" in
+		f)
+			echo "Using --force-recreate..."
+			flags='--force-recreate'
+			;;
+		
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+	esac
+done
+
 # LetsEncrypt storage
 acme=./traefik/acme.json
 if [[ ! -f "$acme" ]]; then
@@ -54,6 +70,7 @@ fi
 sudo chown -R www-data:www-data ./wp-cli
 
 # Generate secrets
+secrets=./.secrets
 if [[ -f "$secrets" ]]; then
 	# Unlock secrets
 	sudo chown "$USER" "$secrets"
@@ -63,9 +80,8 @@ if [[ -f "$secrets" ]]; then
 	. "$secrets"
 
 	# Re-lock secrets
-        sudo chown www-data:www-data "$secrets"
-        sudo chmod 600 "$secrets"
-
+	sudo chown www-data:www-data "$secrets"
+	sudo chmod 600 "$secrets"
 else
 	ask_secrets
 	write_secrets
@@ -78,4 +94,4 @@ fi
 [[ ! -d ./www ]] && mkdir www
 
 # Start traefik
-( cd ./traefik && docker-compose up -d --remove-orphans --force-recreate)
+( cd ./traefik && docker-compose up -d --remove-orphans ${flags:-} )
