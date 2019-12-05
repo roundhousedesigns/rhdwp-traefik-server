@@ -20,8 +20,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.entrypoints=http"
-      - "traefik.http.routers.traefik.rule=Host(`monitor.%%domain%%`)"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$2y$$05$$7t25C0myBoWErPjCUsEDPe/TKLjdiywW4HchSJiKNmK5nZk2saVLW"
       - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
       - "traefik.http.routers.traefik-secure.entrypoints=https"
@@ -29,7 +27,10 @@ services:
       - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
       - "traefik.http.routers.traefik-secure.tls=true"
       - "traefik.http.routers.traefik-secure.tls.certresolver=http"
-      - "traefik.http.routers.traefik-secure.service=api@internal"
+      # API
+      # - "traefik.http.routers.traefik-secure.service=api@internal"
+      # - "traefik.http.routers.traefik.rule=Host(`monitor.%%domain%%`)"
+      # - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$2y$$05$$7t25C0myBoWErPjCUsEDPe/TKLjdiywW4HchSJiKNmK5nZk2saVLW"
 
 networks:
   web:
