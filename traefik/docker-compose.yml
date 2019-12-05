@@ -5,7 +5,8 @@ version: '3.3'
 services:
   traefik:
     image: 'traefik:1.7.2-alpine'
-    #labels:
+    labels:
+    - traefik.enable=false
     #  - traefik.frontend.rule=Host:monitor.$HOSTNAME.roundhouse-designs.com
     #  - traefik.dashboard.port=8080
     volumes:
