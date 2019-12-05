@@ -39,7 +39,7 @@ write_secrets() {
 		WORDPRESS_SMTP_FROM="${WORDPRESS_SMTP_FROM}"
 	EOT
 	
-	sudo chmod 660 "${secrets}" && sudo chgrp www-data "${secrets}"
+	sudo chmod 600 "${secrets}" && sudo chown www-data:www-data "${secrets}"
 }
 
 # LetsEncrypt storage
