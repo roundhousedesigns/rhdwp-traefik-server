@@ -1,9 +1,10 @@
 .secrets
-log/*
+*.log
 www/*
 traefik/.env
 traefik/acme.json
 traefik/docker-compose.yml
+traefik/traefik.log
 
 wp-cli/*
 !wp-cli/config.yml

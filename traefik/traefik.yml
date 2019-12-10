@@ -20,3 +20,7 @@ certificatesResolvers:
       storage: acme.json
       httpChallenge:
         entryPoint: http
+
+# log:
+#   filePath: "/srv/rhdwp/traefik/traefik.log"
+#   level: DEBUG
