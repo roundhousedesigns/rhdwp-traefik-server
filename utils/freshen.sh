@@ -4,6 +4,9 @@
 
 set -ex
 
+echo "Checking sudo freshness..."
+sudo echo "Done."
+
 for d in /srv/rhdwp/www/*; do
 	dir="${d##*/}"
 
@@ -13,10 +16,8 @@ for d in /srv/rhdwp/www/*; do
 	
 	# Rebuild
 	if [[ -f "${d}/build.sh" ]]; then
-		( cd "${d}" && ./build.sh -f > /dev/null 2>&1 & )
+		( cd "${d}" && ./build.sh -f > /dev/null 2>&1 )
 	fi
 done
-
-wait
 
 docker system prune --volumes -f
