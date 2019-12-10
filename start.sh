@@ -93,5 +93,8 @@ fi
 # Create sites directory
 [[ ! -d ./www ]] && mkdir www
 
+# Create web network
+docker network create web || true
+
 # Start traefik
 ( cd ./traefik && docker-compose up -d --remove-orphans ${flags:-} )
