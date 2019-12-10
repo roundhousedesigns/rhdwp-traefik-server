@@ -2,9 +2,7 @@
 
 ## Rebuilds stacks without forcing container recreation (fast)
 
-set -e
-
-wd=$(pwd)
+set -ex
 
 for d in /srv/rhdwp/www/*; do
 	dir="${d##*/}"
@@ -14,9 +12,11 @@ for d in /srv/rhdwp/www/*; do
 	git -C "${d}" pull -q
 	
 	# Rebuild
-	cd "${d}" && bash build.sh -r && cd "${wd}"
-	
-	# shuffle salts (bug in docker wordpress)
-	# docker-compose run --rm wp-cli config shuffle-salts
+	if [[ -f "${d}/build.sh" ]]; then
+		( cd "${d}" && ./build.sh -f > /dev/null 2>&1 & )
+	fi
 done
+
+wait
+
 docker system prune --volumes -f
