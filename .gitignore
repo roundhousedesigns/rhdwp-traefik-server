@@ -5,6 +5,7 @@ traefik/.env
 traefik/acme.json
 traefik/docker-compose.yml
 traefik/traefik.log
+traefik/traefik.toml
 
 wp-cli/*
 !wp-cli/config.yml
