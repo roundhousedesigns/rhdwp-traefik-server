@@ -20,6 +20,7 @@ certificatesResolvers:
       storage: acme.json
       httpChallenge:
         entryPoint: http
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
 
 # log:
 #   filePath: "/srv/rhdwp/traefik/traefik.log"
