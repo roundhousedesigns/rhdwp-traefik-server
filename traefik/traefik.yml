@@ -24,4 +24,4 @@ certificatesResolvers:
 
 log:
   filePath: "/srv/rhdwp/traefik/traefik.log"
-  level: DEBUG
+  level: ERROR
