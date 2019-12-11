@@ -17,7 +17,7 @@ services:
       # API
       - --api.dashboard=true
       # letsencrypt/srv/rhdwp/traefik/traefik.log
-      - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
+      # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
