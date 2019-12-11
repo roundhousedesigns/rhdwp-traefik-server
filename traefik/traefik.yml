@@ -14,13 +14,16 @@ providers:
     watch: true
 
 certificatesResolvers:
-  http:
+  cloudflare:
     acme:
       email: admin@roundhouse-designs.com
       storage: acme.json
-      httpChallenge:
-        entryPoint: http
       # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"
 
 log:
   filePath: "/srv/rhdwp/traefik/traefik.log"
