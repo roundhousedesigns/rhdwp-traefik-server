@@ -2,7 +2,7 @@
 
 ## Rebuilds stacks without forcing container recreation (fast)
 
-set -ex
+set -e
 
 echo "Checking sudo freshness..."
 sudo echo "Done."
@@ -12,11 +12,12 @@ for d in /srv/rhdwp/www/*; do
 
 	echo "UPDATE ${dir}"
 	echo "${dir}: Pulling from remote"
+	git -C "${d}" checkout master
 	git -C "${d}" pull -q
 	
 	# Rebuild
 	if [[ -f "${d}/build.sh" ]]; then
-		( cd "${d}" && ./build.sh -f > /dev/null 2>&1 )
+		( cd "${d}" && ./build.sh -f )
 	fi
 done
 
