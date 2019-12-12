@@ -10,14 +10,14 @@ sudo echo "Done."
 for d in /srv/rhdwp/www/*; do
 	dir="${d##*/}"
 
-	echo "UPDATE ${dir}"
-	echo "${dir}: Pulling from remote"
-	git -C "${d}" checkout master
-	git -C "${d}" pull -q
-	
+	echo "UPDATE $dir"
+	echo "$dir: Pulling from remote"
+	git -C "$d" checkout master
+	git -C "$d" pull
+
 	# Rebuild
 	if [[ -f "${d}/build.sh" ]]; then
-		( cd "${d}" && ./build.sh -f )
+		( cd "$d" && ./build.sh -r )
 	fi
 done
 
