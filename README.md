@@ -1,4 +1,4 @@
-RHDWP Traefik Server Environment
+RHDWP Traefik for rhdwp-docker
 ---
 Traefik-routed environment with LetsEncrypt support.
 
