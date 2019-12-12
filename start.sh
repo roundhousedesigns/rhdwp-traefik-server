@@ -95,6 +95,14 @@ write_env
 # Create sites directory
 [[ ! -d ./www ]] && mkdir www
 
+# Shiny new log (or not)
+if [[ ! -d ./log ]]; then
+	mkdir log
+fi
+if [[ ! -f ./log/error.log ]]; then
+	touch error.log
+fi
+
 # Create web network
 docker network create web || true
 
