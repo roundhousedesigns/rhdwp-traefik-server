@@ -13,8 +13,8 @@ for d in /srv/rhdwp/www/*; do
 	echo "${dir}: Pulling from remote"
 	git -C "${d}" pull -q
 	
-	# Rebuild
-	cd "${d}" && bash build.sh -f && cd "${wd}"
+	# Restart
+	cd "${d}" && bash start.sh -f && cd "${wd}"
 	
 	# shuffle salts (bug in docker wordpress)
 	# docker-compose run --rm wp-cli config shuffle-salts
