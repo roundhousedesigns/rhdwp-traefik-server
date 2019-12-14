@@ -25,7 +25,6 @@ services:
       # Logging
       - --log.filepath=./log/error.log
       - --log.level=ERROR
-      
     security_opt:
       - no-new-privileges:true
     networks:
