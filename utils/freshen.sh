@@ -13,7 +13,7 @@ for d in /srv/rhdwp/www/*; do
 	echo "UPDATE $dir"
 	echo "$dir: Pulling from remote"
 	git -C "$d" checkout master
-	git -C "$d" pull
+	git -C "$d" pull -q
 
 	# Rebuild
 	if [[ -f "${d}/build.sh" ]]; then
