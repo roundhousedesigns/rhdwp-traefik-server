@@ -14,7 +14,7 @@ for d in /srv/rhdwp/www/*; do
 	git -C "${d}" pull -q
 	
 	# Restart
-	cd "${d}" && bash start.sh -f && cd "${wd}"
+	cd "${d}" && bash rhdwpStart -f && cd "${wd}"
 	
 	# shuffle salts (bug in docker wordpress)
 	# docker-compose run --rm wp-cli config shuffle-salts
