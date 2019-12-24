@@ -16,8 +16,8 @@ for d in /srv/rhdwp/www/*; do
 	git -C "$d" pull -q
 
 	# Rebuild
-	if [[ -f "${d}/rhdwpStart" ]]; then
-		( cd "$d" && ./rhdwpStart -r )
+	if [[ -f "${d}/buildStack" ]]; then
+		( cd "$d" && ./buildStack -r )
 	fi
 done
 
