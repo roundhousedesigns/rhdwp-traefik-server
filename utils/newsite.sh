@@ -10,4 +10,4 @@ sitepath="/srv/rhdwp/www/$1"
 git clone git@github.com:gaswirth/rhdwp-docker "${sitepath}"
 cd "${sitepath}" || exit
 
-./start.sh
+./rhdwpStart
