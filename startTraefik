@@ -1,0 +1,169 @@
+#!/bin/bash
+set -e
+##################################################################
+# startTraefik ###################################################
+##################################################################
+#
+# Sets up and (re)starts the main RHDWP Traefik router stack. Also used to rebuild config files.
+#
+##################################################################
+# Change History #################################################
+##################################################################
+#
+# 12/24/19  NCG    	Finally added this changelog.
+#                           Add documentation and restructure for long-term
+#							happiness, and a Help function.
+#							Yummy refactoring.
+#
+##################################################################
+##################################################################
+#
+#  Copyright (C) 2019 Nick Gaswirth                                            
+#  nick@roundhouse-designs.com                                                 
+#                                                                              
+#  This program is free software; you can redistribute it and/or modify        
+#  it under the terms of the GNU General Public License as published by        
+#  the Free Software Foundation; either version 2 of the License, or           
+#  (at your option) any later version.                                         
+#                                                                              
+#  This program is distributed in the hope that it will be useful,             
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of              
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               
+#  GNU General Public License for more details.                                
+#                                                                              
+#  You should have received a copy of the GNU General Public License           
+#  along with this program; if not, write to the Free Software                 
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA   
+#
+##################################################################
+# Help ###########################################################
+##################################################################
+
+Help()
+{
+	# Display Help
+	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
+	echo
+	echo "Syntax: startTraefik [-f|h]"
+	echo "options:"
+	echo "f     Run docker-compose up with --force-recreate flag."
+	echo "h     Print this Help."
+	echo
+}
+
+##################################################################
+# Functions ######################################################
+##################################################################
+
+AskEnv() {
+	# Verify .env values
+	
+	# CloudFlare account email
+	while [[ -z "$CF_API_EMAIL" ]]; do
+		read -r -p "CloudFlare account email: " CF_API_EMAIL
+	done
+	
+	# CloudFlare API Key
+	while [[ -z "$CF_API_KEY" ]]; do
+		read -r -p "CloudFlare API Key: " CF_API_KEY
+	done
+
+	# Mailgun API Key
+	while [[ -z "$MG_API_KEY" ]]; do
+		read -r -p "MailGun API Key: " MG_API_KEY
+	done
+
+	# SMTP login for dev mode
+	while [[ -z "$DEV_SMTP_LOGIN" ]]; do
+		read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
+	done
+
+	# Mailgun API Key
+	while [[ -z "$DEV_SMTP_PASS" ]]; do
+		read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
+	done
+	
+	# Yeah, I know
+	# SMTP login for dev mode
+	while [[ -z "$DEV_SMTP_FROM" ]]; do
+		read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
+	done
+}
+
+WriteEnv() {
+	# Write to .env and lock it down
+	
+	cat <<-EOT > "$env_file"
+		FQDN=$(hostname -f)
+		CF_API_EMAIL=$CF_API_EMAIL
+		CF_API_KEY=$CF_API_KEY
+		MG_API_KEY=$MG_API_KEY
+		DEV_SMTP_FROM=$DEV_SMTP_FROM
+		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
+		DEV_SMTP_PASS=$DEV_SMTP_PASS
+		DEV_SMTP_FROM=$DEV_SMTP_FROM
+	EOT
+
+	sudo chown "$USER" "$env_file"
+	sudo chmod 600 "$env_file"
+}
+
+##################################################################
+# Main ###########################################################
+##################################################################
+
+## Get options
+while getopts "fh" opt; do
+	case "$opt" in
+		f)	# force rebuild
+			echo "Using --force-recreate..."
+			flags='--force-recreate'
+			;;
+		h)	# display Help
+			Help
+			exit
+			;;
+		\?) # invalid option
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+	esac
+done
+
+# LetsEncrypt storage
+acme=./traefik/acme.json
+if [[ ! -f "$acme" ]]; then
+	sudo touch "$acme"
+	sudo chown www-data:www-data "$acme"
+	sudo chmod 600 "$acme"
+fi
+
+# wp-cli permissions
+sudo chown -R www-data:www-data ./wp-cli
+
+# Generate environment variables
+env_file=./traefik/.env
+if [[ -r "$env_file" ]]; then
+	# shellcheck disable=SC1091
+	# shellcheck source=/srv/rhdwp/traefik/.env
+	. "$env_file"
+fi
+AskEnv
+WriteEnv
+
+# Create sites directory
+[[ ! -d ./www ]] && mkdir www
+
+# Shiny new log (or not)
+if [[ ! -d ./log ]]; then
+	mkdir log
+fi
+if [[ ! -f ./log/error.log ]]; then
+	touch error.log
+fi
+
+# Create web network
+docker network create web || true
+
+# Start traefik
+( cd ./traefik && ( docker-compose down || true ) && docker-compose up -d --remove-orphans ${flags:-} )
