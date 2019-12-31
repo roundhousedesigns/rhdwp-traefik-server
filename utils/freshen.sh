@@ -17,7 +17,7 @@ for d in /srv/rhdwp/www/*; do
 
 	# Rebuild
 	if [[ -f "${d}/buildStack" ]]; then
-		( cd "$d" && ./buildStack -r )
+		( cd "$d" && ./buildStack -b )
 	fi
 done
 
