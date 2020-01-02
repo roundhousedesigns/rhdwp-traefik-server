@@ -4,7 +4,8 @@ set -e
 # startTraefik ###################################################
 ##################################################################
 #
-# Sets up and (re)starts the main RHDWP Traefik router stack. Also used to rebuild config files.
+# Sets up and (re)starts the main RHDWP Traefik router stack. 
+#		Also used to rebuild config files.
 #
 ##################################################################
 # Change History #################################################
