@@ -10,10 +10,11 @@ set -e
 # Change History #################################################
 ##################################################################
 #
-# 12/24/19  NCG    	Finally added this changelog.
-#                           Add documentation and restructure for long-term
-#							happiness, and a Help function.
-#							Yummy refactoring.
+# 12/24/19		Finally added this changelog.
+#								Add documentation and restructure for long-term
+#								happiness, and a Help function.
+#								Yummy refactoring.
+# 1/1/20			Sanity checks.
 #
 ##################################################################
 ##################################################################
@@ -55,7 +56,25 @@ Help()
 # Functions ######################################################
 ##################################################################
 
-AskEnv() {
+SanityChecks()
+{
+	# Check requried tools
+	
+	## Sudo
+	echo "Checking sudo freshness..."
+	sudo echo "Done."
+	
+	deps=( docker docker-compose )
+	for i in "${deps[@]}"; do
+		if ! hash "$i" 2>/dev/null; then
+			printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
+			exit 1
+		fi
+	done
+}
+
+AskEnv()
+{
 	# Verify .env values
 	
 	# CloudFlare account email
@@ -90,7 +109,8 @@ AskEnv() {
 	done
 }
 
-WriteEnv() {
+WriteEnv()
+{
 	# Write to .env and lock it down
 	
 	cat <<-EOT > "$env_file"
@@ -130,7 +150,10 @@ while getopts "fh" opt; do
 	esac
 done
 
-# LetsEncrypt storage
+## Before we begin...
+SanityChecks
+
+## LetsEncrypt storage
 acme=./traefik/acme.json
 if [[ ! -f "$acme" ]]; then
 	sudo touch "$acme"
@@ -138,10 +161,10 @@ if [[ ! -f "$acme" ]]; then
 	sudo chmod 600 "$acme"
 fi
 
-# wp-cli permissions
+## wp-cli permissions
 sudo chown -R www-data:www-data ./wp-cli
 
-# Generate environment variables
+## Generate environment variables
 env_file=./traefik/.env
 if [[ -r "$env_file" ]]; then
 	# shellcheck disable=SC1091
@@ -151,10 +174,10 @@ fi
 AskEnv
 WriteEnv
 
-# Create sites directory
+## Create sites directory
 [[ ! -d ./www ]] && mkdir www
 
-# Shiny new log (or not)
+## Shiny new log (or not)
 if [[ ! -d ./log ]]; then
 	mkdir log
 fi
@@ -162,8 +185,8 @@ if [[ ! -f ./log/error.log ]]; then
 	touch error.log
 fi
 
-# Create web network
+## Create web network
 docker network create web || true
 
-# Start traefik
+## Start traefik
 ( cd ./traefik && ( docker-compose down || true ) && docker-compose up -d --remove-orphans ${flags:-} )
