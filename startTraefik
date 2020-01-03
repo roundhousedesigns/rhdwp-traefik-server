@@ -30,7 +30,7 @@ Help()
 	echo "Syntax: startTraefik [-h][-f][-d]"
 	echo "options:"
 	echo "-h    Print this Help."
-	echo "-d    Development mode (enables dashboard and disables auto HTTPS redirection)"
+	echo "-d    Development mode (enables authenticated Traefik dashboard)"
 	echo "-f    Run docker-compose up with --force-recreate flag."
 	echo
 }
