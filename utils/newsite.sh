@@ -2,8 +2,8 @@
 #$1: Directory name for new site stack
 
 if [ -z "$1" ]; then
-    echo "No directory name supplied."
-    exit 1
+  echo "No directory name supplied."
+  exit 1
 fi
 
 sitepath="/srv/rhdwp/www/$1"
