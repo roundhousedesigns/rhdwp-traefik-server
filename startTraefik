@@ -27,10 +27,11 @@ Help()
 	# Display Help
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
-	echo "Syntax: startTraefik [-h][-f][-d]"
+	echo "Syntax: startTraefik [-h][-d][-a][-f]"
 	echo "options:"
 	echo "-h    Print this Help."
-	echo "-d    Development mode (enables authenticated Traefik dashboard)"
+	echo "-d    Development mode (also enables authenticated Traefik dashboard)"
+	echo "-a    Enable dashboard."
 	echo "-f    Run docker-compose up with --force-recreate flag."
 	echo
 }
@@ -116,7 +117,7 @@ GenerateComposeFile()
 	# Create/edit docker-compose.yml
 	cp "$composeTemplate" "$composeTemporary"
 
-	if [[ "${devMode}" = true ]]; then
+	if [[ "${api}" = true ]]; then
 		# Uncomment all commented lines to enable
 		sed 's/#\s//g' "$composeTemplate" > "$composeTemporary"
 	fi
@@ -134,8 +135,11 @@ composeTemporary="${traefikDir}/docker-compose.yml~"
 composeFile="${traefikDir}/docker-compose.yml"
 flags=
 devMode=false
+api=
+network=web
+
 ## Get options
-while getopts "hdf" opt; do
+while getopts "hdaf" opt; do
 	case "$opt" in
 		h)  # display Help
 			Help
@@ -144,6 +148,10 @@ while getopts "hdf" opt; do
 		d)  # Development mode
 			echo "Development mode enabled."
 			devMode=true
+			api=true
+			;;
+		a)  # API/Dashboard enabled
+			api=true
 			;;
 		f)  # force rebuild
 			echo "Using --force-recreate..."
@@ -194,7 +202,9 @@ if [[ ! -f ./log/error.log ]]; then
 fi
 
 ## Create web network
-docker network create web || true
+if ! docker network ls | grep -q "$network"; then
+	docker network create "$network" || true
+fi
 
 ## Enable Development Mode
 GenerateComposeFile
