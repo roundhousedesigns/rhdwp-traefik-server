@@ -6,7 +6,7 @@ set -e
 ##################################################################
 #
 # Sets up and (re)starts the main RHDWP Traefik router stack. 
-#		Also used to rebuild config files.
+#	Also used to rebuild config files.
 #
 ##################################################################
 # Change History #################################################
@@ -52,10 +52,10 @@ SanityChecks()
 	
 	deps=( docker docker-compose )
 	for i in "${deps[@]}"; do
-		if ! hash "$i" 2>/dev/null; then
-			printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
-			exit 1
-		fi
+	if ! hash "$i" 2>/dev/null; then
+		printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
+		exit 1
+	fi
 	done
 }
 
@@ -65,34 +65,34 @@ AskEnv()
 
 	# CloudFlare account email
 	while [[ -z "$CF_API_EMAIL" ]]; do
-		read -r -p "CloudFlare account email: " CF_API_EMAIL
+	read -r -p "CloudFlare account email: " CF_API_EMAIL
 	done
 
 	# CloudFlare API Key
 	while [[ -z "$CF_API_KEY" ]]; do
-		read -r -p "CloudFlare API Key: " CF_API_KEY
+	read -r -p "CloudFlare API Key: " CF_API_KEY
 	done
 
 	# Mailgun API Key
 	while [[ -z "$MG_API_KEY" ]]; do
-		read -r -p "MailGun API Key: " MG_API_KEY
+	read -r -p "MailGun API Key: " MG_API_KEY
 	done
 
 	if [[ "$devMode" = true ]]; then
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_LOGIN" ]]; do
-			read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
-		done
+	# SMTP login for dev mode
+	while [[ -z "$DEV_SMTP_LOGIN" ]]; do
+		read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
+	done
 
-		# Mailgun API Key
-		while [[ -z "$DEV_SMTP_PASS" ]]; do
-			read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
-		done
+	# Mailgun API Key
+	while [[ -z "$DEV_SMTP_PASS" ]]; do
+		read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
+	done
 
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_FROM" ]]; do
-			read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
-		done
+	# SMTP login for dev mode
+	while [[ -z "$DEV_SMTP_FROM" ]]; do
+		read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
+	done
 	fi
 }
 
@@ -101,13 +101,13 @@ WriteEnv()
 	# Write to .env and lock it down
 
 	cat <<-EOT > "$env_file"
-		FQDN=$(hostname -f)
-		CF_API_EMAIL=$CF_API_EMAIL
-		CF_API_KEY=$CF_API_KEY
-		MG_API_KEY=$MG_API_KEY
-		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
-		DEV_SMTP_PASS=$DEV_SMTP_PASS
-		DEV_SMTP_FROM=$DEV_SMTP_FROM
+	FQDN=$(hostname -f)
+	CF_API_EMAIL=$CF_API_EMAIL
+	CF_API_KEY=$CF_API_KEY
+	MG_API_KEY=$MG_API_KEY
+	DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
+	DEV_SMTP_PASS=$DEV_SMTP_PASS
+	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
 	sudo chown "$USER" "$env_file"
@@ -120,8 +120,8 @@ GenerateComposeFile()
 	cp "$composeTemplate" "$composeTemporary"
 
 	if [[ "${api}" = true ]]; then
-		# Uncomment all commented lines to enable
-		sed 's/#\s//g' "$composeTemplate" > "$composeTemporary"
+	# Uncomment all commented lines to enable
+	sed 's/#\s//g' "$composeTemplate" > "$composeTemporary"
 	fi
 
 	mv "$composeTemporary" "$composeFile"
@@ -134,34 +134,34 @@ SetupFiles()
 	## Logs
 	logdir="${traefikDir}/log"
 	if [[ ! -d "$logdir" ]]; then
-	        mkdir "$logdir"
+			mkdir "$logdir"
 	fi
 
 	log="${logdir}/error.log"
 	if [[ ! -f "$log" ]]; then
-	        touch "$log"
+			touch "$log"
 	fi
 
 	## LetsEncrypt storage
 	acme="${traefikDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
-	        sudo touch "$acme"
-	        sudo chown www-data:www-data "$acme"
-	        sudo chmod 600 "$acme"
+	sudo touch "$acme"
+	sudo chown www-data:www-data "$acme"
+	sudo chmod 600 "$acme"
 	fi
 
 	## Environment variables file
-        env_file="${traefikDir}/.env"
-        if [[ -r "$env_file" ]]; then
-                # shellcheck disable=SC1091
-                # shellcheck source=/srv/rhdwp/traefik/.env
-                . "$env_file"
-        fi
+	env_file="${traefikDir}/.env"
+	if [[ -r "$env_file" ]]; then
+		# shellcheck disable=SC1091
+		# shellcheck source=/srv/rhdwp/traefik/.env
+		. "$env_file"
+	fi
 
 	## Create sites directory
-        if [[ ! -d "${rootDir}/www" ]]; then
-                mkdir www
-        fi
+		if [[ ! -d "${rootDir}/www" ]]; then
+				mkdir www
+		fi
 
 	## wp-cli permissions
 	sudo chown -R www-data:www-data "${rootDir}/wp-cli"
@@ -185,26 +185,26 @@ network=web
 ## Get options
 while getopts "hdaf" opt; do
 	case "$opt" in
-		h)  # display Help
-			Help
-			exit
-			;;
-		d)  # Development mode
-			echo "Development mode enabled."
-			devMode=true
-			api=true
-			;;
-		a)  # API/Dashboard enabled
-			api=true
-			;;
-		f)  # Run freshen.sh (www/ site stacks)
-			echo "Freshen sites"
-			freshenMode=true
-			;;
-		\?) # invalid option
-			echo "Invalid option: -$OPTARG" >&2
-			exit 1
-			;;
+	h)  # display Help
+		Help
+		exit
+		;;
+	d)  # Development mode
+		echo "Development mode enabled."
+		devMode=true
+		api=true
+		;;
+	a)  # API/Dashboard enabled
+		api=true
+		;;
+	f)  # Run freshen.sh (www/ site stacks)
+		echo "Freshen sites"
+		freshenMode=true
+		;;
+	\?) # invalid option
+		echo "Invalid option: -$OPTARG" >&2
+		exit 1
+		;;
 	esac
 done
 
