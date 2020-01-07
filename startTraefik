@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+
 ##################################################################
 # startTraefik ###################################################
 ##################################################################
@@ -130,7 +131,7 @@ SetupFiles()
 	# Generate storage and log files, if necessary
 
 	## Logs
-	logdir=./log
+	logdir="${traefikDir}/log"
 	if [[ ! -d "$logdir" ]]; then
 	        mkdir "$logdir"
 	fi
@@ -141,7 +142,7 @@ SetupFiles()
 	fi
 
 	## LetsEncrypt storage
-	acme=./traefik/acme.json
+	acme="${traefikDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
 	        sudo touch "$acme"
 	        sudo chown www-data:www-data "$acme"
@@ -149,7 +150,7 @@ SetupFiles()
 	fi
 
 	## Environment variables file
-        env_file=./traefik/.env
+        env_file="${traefikDir}/.env"
         if [[ -r "$env_file" ]]; then
                 # shellcheck disable=SC1091
                 # shellcheck source=/srv/rhdwp/traefik/.env
@@ -157,19 +158,20 @@ SetupFiles()
         fi
 
 	## Create sites directory
-        if [[ ! -d ./www ]]; then
+        if [[ ! -d "${rootDir}/www" ]]; then
                 mkdir www
         fi
 
 	## wp-cli permissions
-	sudo chown -R www-data:www-data ./wp-cli
+	sudo chown -R www-data:www-data "${rootDir}/wp-cli"
 }
 
 ##################################################################
 # Main ###########################################################
 ##################################################################
 ## Initialize variables
-traefikDir=$(dirname "$(realpath "$0")")"/traefik"
+rootDir=$(dirname "$(realpath "$0")")
+traefikDir="${rootDir}/traefik"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary="${traefikDir}/docker-compose.yml~"
 composeFile="${traefikDir}/docker-compose.yml"
@@ -223,4 +225,4 @@ WriteEnv
 GenerateComposeFile
 
 ## Start traefik
-( cd ./traefik && ( docker-compose down || true ) && docker-compose up -d --remove-orphans ${flags:-} )
+( cd "$traefikDir" && ( docker-compose down || true ) && docker-compose up -d --remove-orphans ${flags:-} )
