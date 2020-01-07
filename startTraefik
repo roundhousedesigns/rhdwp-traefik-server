@@ -60,12 +60,12 @@ SanityChecks()
 AskEnv()
 {
 	# Verify .env values
-	
+
 	# CloudFlare account email
 	while [[ -z "$CF_API_EMAIL" ]]; do
 		read -r -p "CloudFlare account email: " CF_API_EMAIL
 	done
-	
+
 	# CloudFlare API Key
 	while [[ -z "$CF_API_KEY" ]]; do
 		read -r -p "CloudFlare API Key: " CF_API_KEY
@@ -86,7 +86,7 @@ AskEnv()
 		while [[ -z "$DEV_SMTP_PASS" ]]; do
 			read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
 		done
-		
+
 		# SMTP login for dev mode
 		while [[ -z "$DEV_SMTP_FROM" ]]; do
 			read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
@@ -97,7 +97,7 @@ AskEnv()
 WriteEnv()
 {
 	# Write to .env and lock it down
-	
+
 	cat <<-EOT > "$env_file"
 		FQDN=$(hostname -f)
 		CF_API_EMAIL=$CF_API_EMAIL
@@ -123,6 +123,46 @@ GenerateComposeFile()
 	fi
 
 	mv "$composeTemporary" "$composeFile"
+}
+
+SetupFiles()
+{
+	# Generate storage and log files, if necessary
+
+	## Logs
+	logdir=./log
+	if [[ ! -d "$logdir" ]]; then
+	        mkdir "$logdir"
+	fi
+
+	log="${logdir}/error.log"
+	if [[ ! -f "$log" ]]; then
+	        touch "$log"
+	fi
+
+	## LetsEncrypt storage
+	acme=./traefik/acme.json
+	if [[ ! -f "$acme" ]]; then
+	        sudo touch "$acme"
+	        sudo chown www-data:www-data "$acme"
+	        sudo chmod 600 "$acme"
+	fi
+
+	## Environment variables file
+        env_file=./traefik/.env
+        if [[ -r "$env_file" ]]; then
+                # shellcheck disable=SC1091
+                # shellcheck source=/srv/rhdwp/traefik/.env
+                . "$env_file"
+        fi
+
+	## Create sites directory
+        if [[ ! -d ./www ]]; then
+                mkdir www
+        fi
+
+	## wp-cli permissions
+	sudo chown -R www-data:www-data ./wp-cli
 }
 
 ##################################################################
@@ -167,44 +207,17 @@ done
 ## Before we begin...
 SanityChecks
 
-## LetsEncrypt storage
-acme=./traefik/acme.json
-if [[ ! -f "$acme" ]]; then
-	sudo touch "$acme"
-	sudo chown www-data:www-data "$acme"
-	sudo chmod 600 "$acme"
-fi
-
-## wp-cli permissions
-sudo chown -R www-data:www-data ./wp-cli
-
-## Generate environment variables
-env_file=./traefik/.env
-if [[ -r "$env_file" ]]; then
-	# shellcheck disable=SC1091
-	# shellcheck source=/srv/rhdwp/traefik/.env
-	. "$env_file"
-fi
-AskEnv
-WriteEnv
-
-## Create sites directory
-if [[ ! -d ./www ]]; then
-	mkdir www
-fi
-
-## Shiny new log (or not)
-if [[ ! -d ./log ]]; then
-	mkdir log
-fi
-if [[ ! -f ./log/error.log ]]; then
-	touch error.log
-fi
+## Generate LetsEncrypt storage and log files
+SetupFiles
 
 ## Create web network
 if ! docker network ls | grep -q "$network"; then
 	docker network create "$network" || true
 fi
+
+## Retrieve or prompt for environment variables, and export to .env
+AskEnv
+WriteEnv
 
 ## Enable Development Mode
 GenerateComposeFile
