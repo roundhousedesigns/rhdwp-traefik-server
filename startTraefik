@@ -134,12 +134,12 @@ SetupFiles()
 	## Logs
 	logdir="${traefikDir}/log"
 	if [[ ! -d "$logdir" ]]; then
-			mkdir "$logdir"
+		mkdir "$logdir"
 	fi
 
 	log="${logdir}/error.log"
 	if [[ ! -f "$log" ]]; then
-			touch "$log"
+		touch "$log"
 	fi
 
 	## LetsEncrypt storage
