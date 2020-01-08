@@ -179,7 +179,7 @@ FreshenStacks()
 
 		# Quick rebuild
 		if [[ -f "${d}/buildStack" ]]; then
-			cd "$d" && ./buildStack -q
+			cd "$d" &&  sudo ./buildStack -q
 			cd "$rootDir"
 		fi
 	done
