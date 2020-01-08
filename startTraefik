@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 ##################################################################
 # startTraefik ###################################################
@@ -168,12 +168,12 @@ SetupFiles()
 
 FreshenSites()
 {
-	for d in "${wwwDir}/*"; do
+	for d in "${wwwDir}"/*; do
 		dir="${d##*/}"
 
 		echo "UPDATE $dir"
-		git -C "$d" checkout master
-		git -C "$d" pull -q
+		# git -C "$d" checkout master
+		# git -C "$d" pull -q
 
 		# Rebuild
 		if [[ -f "${d}/buildStack" ]]; then
