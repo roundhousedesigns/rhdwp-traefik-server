@@ -184,8 +184,8 @@ FreshenSites()
 		dir="${d##*/}"
 
 		echo "UPDATE $dir"
-		# git -C "$d" checkout master
-		# git -C "$d" pull -q
+		git -C "$d" checkout master
+		git -C "$d" pull -q
 
 		# Rebuild
 		if [[ -f "${d}/buildStack" ]]; then
