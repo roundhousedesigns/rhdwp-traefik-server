@@ -1,21 +1,23 @@
 #!/bin/bash
 set -e
+
 ##################################################################
 # startTraefik ###################################################
 ##################################################################
 #
 # Sets up and (re)starts the main RHDWP Traefik router stack. 
-#		Also used to rebuild config files.
+#	Also used to rebuild config files.
 #
 ##################################################################
 # Change History #################################################
 ##################################################################
 #
-# 12/24/2019	Finally added this changelog.
-#								Add documentation and restructure for long-term
-#								happiness, and a Help function.
-# 1/1/2020		Sanity checks.
-# 1/3/2020		Added -d for dev mode; Removed license.
+# 12/24/2019  Finally added this changelog.
+#               Add documentation and restructure for long-term
+#               happiness, and a Help function.
+# 1/1/2020    Sanity checks.
+# 1/3/2020    Added -d for dev mode; Removed license.
+# 1/7/2020    Added -f for freshen mode.
 #
 ##################################################################
 # Help ###########################################################
@@ -31,7 +33,7 @@ Help()
 	echo "-h    Print this Help."
 	echo "-d    Development mode (also enables authenticated Traefik dashboard)"
 	echo "-a    Enable dashboard."
-	echo "-f    Run docker-compose up with --force-recreate flag."
+	echo "-f    Freshen site stacks in www/ directory"
 	echo
 }
 
@@ -62,34 +64,34 @@ AskEnv()
 
 	# CloudFlare account email
 	while [[ -z "$CF_API_EMAIL" ]]; do
-		read -r -p "CloudFlare account email: " CF_API_EMAIL
+	read -r -p "CloudFlare account email: " CF_API_EMAIL
 	done
 
 	# CloudFlare API Key
 	while [[ -z "$CF_API_KEY" ]]; do
-		read -r -p "CloudFlare API Key: " CF_API_KEY
+	read -r -p "CloudFlare API Key: " CF_API_KEY
 	done
 
 	# Mailgun API Key
 	while [[ -z "$MG_API_KEY" ]]; do
-		read -r -p "MailGun API Key: " MG_API_KEY
+	read -r -p "MailGun API Key: " MG_API_KEY
 	done
 
 	if [[ "$devMode" = true ]]; then
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_LOGIN" ]]; do
-			read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
-		done
+	# SMTP login for dev mode
+	while [[ -z "$DEV_SMTP_LOGIN" ]]; do
+		read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
+	done
 
-		# Mailgun API Key
-		while [[ -z "$DEV_SMTP_PASS" ]]; do
-			read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
-		done
+	# Mailgun API Key
+	while [[ -z "$DEV_SMTP_PASS" ]]; do
+		read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
+	done
 
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_FROM" ]]; do
-			read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
-		done
+	# SMTP login for dev mode
+	while [[ -z "$DEV_SMTP_FROM" ]]; do
+		read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
+	done
 	fi
 }
 
@@ -98,13 +100,13 @@ WriteEnv()
 	# Write to .env and lock it down
 
 	cat <<-EOT > "$env_file"
-		FQDN=$(hostname -f)
-		CF_API_EMAIL=$CF_API_EMAIL
-		CF_API_KEY=$CF_API_KEY
-		MG_API_KEY=$MG_API_KEY
-		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
-		DEV_SMTP_PASS=$DEV_SMTP_PASS
-		DEV_SMTP_FROM=$DEV_SMTP_FROM
+	FQDN=$(hostname -f)
+	CF_API_EMAIL=$CF_API_EMAIL
+	CF_API_KEY=$CF_API_KEY
+	MG_API_KEY=$MG_API_KEY
+	DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
+	DEV_SMTP_PASS=$DEV_SMTP_PASS
+	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
 	sudo chown "$USER" "$env_file"
@@ -117,8 +119,8 @@ GenerateComposeFile()
 	cp "$composeTemplate" "$composeTemporary"
 
 	if [[ "${api}" = true ]]; then
-		# Uncomment all commented lines to enable
-		sed 's/#\s//g' "$composeTemplate" > "$composeTemporary"
+	# Uncomment all commented lines to enable
+	sed 's/#\s//g' "$composeTemplate" > "$composeTemporary"
 	fi
 
 	mv "$composeTemporary" "$composeFile"
@@ -156,25 +158,45 @@ SetupFiles()
 	fi
 
 	## Create sites directory
-	if [[ ! -d "${rootDir}/www" ]]; then
-		mkdir www
+	if [[ ! -d "${wwwDir}" ]]; then
+		mkdir "${rootDir}/www"
 	fi
 
 	## wp-cli permissions
 	sudo chown -R www-data:www-data "${rootDir}/wp-cli"
 }
 
+FreshenStacks()
+{
+	# Iterate through docker-compose stacks in www/, pull the latest
+	#		and do a quick rebuild
+	for d in ${wwwDir}/*; do
+		currentDir="${d##*/}"
+
+		echo "UPDATE $currentDir"
+		git -C "$d" checkout master
+		git -C "$d" pull -q
+
+		# Quick rebuild
+		if [[ -f "${d}/buildStack" ]]; then
+			cd "$d" && ./buildStack -q
+			cd "$rootDir"
+		fi
+	done
+}
+
 ##################################################################
 # Main ###########################################################
 ##################################################################
 ## Initialize variables
-rootDir=$(dirname "$(realpath "$0")")
+rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
+wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary="${traefikDir}/docker-compose.yml~"
 composeFile="${traefikDir}/docker-compose.yml"
-flags=
 devMode=false
+freshenMode=false
 api=
 network=web
 
@@ -193,9 +215,9 @@ while getopts "hdaf" opt; do
 	a) # API/Dashboard enabled
 		api=true
 		;;
-	f) # force rebuild
-		echo "Using --force-recreate..."
-		flags='--force-recreate'
+	f) # Run freshen.sh (www/ site stacks)
+		echo "Freshen sites"
+		freshenMode=true
 		;;
 	\?) # invalid option
 		echo "Invalid option: -$OPTARG" >&2
@@ -223,4 +245,9 @@ WriteEnv
 GenerateComposeFile
 
 ## Start traefik
-( cd "${traefikDir}" && ( docker-compose down || true ) && docker-compose up -d --remove-orphans ${flags:-} )
+( cd "$traefikDir" && ( docker-compose down || true ) && docker-compose up -d --remove-orphans )
+
+## Freshen site stacks
+if [[ "$freshenMode" = true ]]; then
+	FreshenStacks
+fi
