@@ -166,25 +166,6 @@ SetupFiles()
 	sudo chown -R www-data:www-data "${rootDir}/wp-cli"
 }
 
-FreshenStacks()
-{
-	# Iterate through docker-compose stacks in www/, pull the latest
-	#		and do a quick rebuild
-	for d in ${wwwDir}/*; do
-		currentDir="${d##*/}"
-
-		echo "UPDATE $currentDir"
-		git -C "$d" checkout master
-		git -C "$d" pull -q
-
-		# Quick rebuild
-		if [[ -f "${d}/buildStack" ]]; then
-			cd "$d" &&  sudo ./buildStack -q
-			cd "$rootDir"
-		fi
-	done
-}
-
 ##################################################################
 # Main ###########################################################
 ##################################################################
@@ -192,6 +173,7 @@ FreshenStacks()
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 wwwDir="${rootDir}/www"
+utilsDir="${rootDir}/utils"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary="${traefikDir}/docker-compose.yml~"
 composeFile="${traefikDir}/docker-compose.yml"
@@ -249,5 +231,5 @@ GenerateComposeFile
 
 ## Freshen site stacks
 if [[ "$freshenMode" = true ]]; then
-	FreshenStacks
+	sudo -u "$USER" "${utilsDir}/freshen.sh"
 fi
