@@ -7,6 +7,9 @@ set -e
 echo "Checking sudo freshness..."
 sudo echo "Done."
 
+# Cleanup first
+docker system prune --volumes -f
+
 for d in /srv/rhdwp/www/*; do
   dir="${d##*/}"
 
@@ -20,5 +23,3 @@ for d in /srv/rhdwp/www/*; do
     ( cd "$d" && ./buildStack -q )
   fi
 done
-
-docker system prune --volumes -f
