@@ -166,6 +166,25 @@ SetupFiles()
 	sudo chown -R www-data:www-data "${rootDir}/wp-cli"
 }
 
+FreshenSites()
+{
+	for d in "${wwwDir}/*"; do
+		dir="${d##*/}"
+
+		echo "UPDATE $dir"
+		git -C "$d" checkout master
+		git -C "$d" pull -q
+
+		# Rebuild
+		if [[ -f "${d}/buildStack" ]]; then
+			cd "$d"
+			sudo -u "$USER" ./buildStack -q
+		fi
+		
+		cd "$cwd"
+	done
+}
+
 ##################################################################
 # Main ###########################################################
 ##################################################################
@@ -197,7 +216,7 @@ while getopts "hdaf" opt; do
 	a) # API/Dashboard enabled
 		api=true
 		;;
-	f) # Run freshen.sh (www/ site stacks)
+	f) # Freshen sites (www/ site stacks)
 		echo "Freshen sites"
 		freshenMode=true
 		;;
@@ -231,5 +250,5 @@ GenerateComposeFile
 
 ## Freshen site stacks
 if [[ "$freshenMode" = true ]]; then
-	sudo -u "$USER" "${utilsDir}/freshen.sh"
+	FreshenSites
 fi
