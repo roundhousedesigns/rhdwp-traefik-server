@@ -18,8 +18,7 @@ services:
       - --certificatesresolvers.cloudflare.acme.storage=acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
       - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
-      - --log.filepath=./log/error.log
-      - --log.level=ERROR
+      - --log.level=debug
     security_opt:
       - no-new-privileges:true
     networks:
