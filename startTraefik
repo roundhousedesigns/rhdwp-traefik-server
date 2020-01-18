@@ -134,13 +134,11 @@ GenerateComposeFile()
 
 	if [[ "$api" = true ]]; then
 		# Uncomment all commented lines to enable
-		# sed -i 's/#\s//g' "$composeTemporary"
 		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
 	fi
 
 	if [[ "$adminer" = true ]] && [[ ! -z "$adminerProject" ]]; then
 		# Enable adminer for specified project (using PROJECT_NAME envvar)
-		# sed -i "s/%%project_label%%/${adminerProject}/g" "$composeTemporary"
 		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
 		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerProject}/g" "$composeTemporary"
 	fi
