@@ -5,10 +5,7 @@ RHDWP Traefik Server TODO
 
 disable_wp_cron
 ---
-- set cronjob to ping each domain in www/ folder
-	- if already exists, update
-- add to startTraefik script
-	- check for wp server cron job (wget) and add if necessary
+- better project name extration than just directory name (innacurate/PITA)
 	
 - create STOP script
 	- cleanup:

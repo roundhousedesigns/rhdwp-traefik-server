@@ -12,14 +12,15 @@ set -e
 ## Change History ##
 ####################
 #
-# 12/24/2019  Finally added this changelog.
-#               Add documentation and restructure for long-term
-#               happiness, and a Help function.
-# 1/1/2020    Sanity checks.
-# 1/3/2020    Added -d for dev mode; Removed license.
-# 1/7/2020    Added -f for freshen mode.
-# 1/8/2020    LegacyChecks for old version cleanups
-# 1/17/2020   API/Adminer/Staging flags
+# 12/24/2019   Finally added this changelog.
+#                Add documentation and restructure for long-term
+#                happiness, and a Help function.
+# 1/1/2020     Sanity checks.
+# 1/3/2020     Added -d for dev mode; Removed license.
+# 1/7/2020     Added -f for freshen mode.
+# 1/8/2020     LegacyChecks for old version cleanups.
+# 1/17/2020    API/Adminer/Staging flags.
+# 1/21/2020    Replace WP's native cron with a system cronjob.
 #
 ##########
 ## Help ##
@@ -210,6 +211,56 @@ FreshenSites()
 	done
 }
 
+SystemCronJob()
+{
+	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
+	local _datetime
+	local _tmpfile
+	local _cmtStart
+	local _cmtEnd
+	local _jobs
+	_datetime='*/15 * * * *'
+	_tmpfile=$(mktemp)
+	_cmtStart='# RHDWP Cron #'
+	_cmtEnd='# RHDWP Cron end #'
+	_jobs=
+
+	# Load the current crontab
+	crontab -l > "$_tmpfile"
+
+	# Generate the cronjob lines
+	_jobs=
+	for d in $wwwDir/*; do
+		_dir="${d##*/}"
+		
+		# Strip '.' character from domains
+		# TODO: Implement true docker label sanitization scheme
+		_label=${_dir//./}
+
+		# Add to the jobs list
+		_jobs+="${_datetime} wget -q -O - https://${_label}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
+	done
+
+	# Remove trailing '\n' lazy bastard
+	_jobs="${_jobs%??}"
+
+	# Delete existing entries, or add entry point comments
+	if grep -q '# RHDWP Cron #' "$_tmpfile"; then
+		sed -i "/$_cmtStart/,/$_cmtEnd/{//!d}" "$_tmpfile"
+	else
+		printf "\n%s\n%s" "$_cmtStart" "$_cmtEnd" >> "$_tmpfile"
+	fi
+
+	# Insert the new cron jobs
+	sed -i "/$_cmtStart/a $_jobs" "$_tmpfile"
+
+	# Install the new crontab
+	crontab -u "$USER" "$_tmpfile"
+
+	# Clean up
+	rm "$_tmpfile"
+}
+
 #########
 # Main ##
 #########
@@ -226,6 +277,8 @@ api=
 adminer=
 certStaging=
 network=web
+
+SystemCronJob
 
 ## Get options
 while getopts "hdfam:s" opt; do
