@@ -1,16 +1,16 @@
 #!/bin/bash
 set -e
 
-##################################################################
-# startTraefik ###################################################
-##################################################################
+##################
+## startTraefik ##
+##################
 #
 # Sets up and (re)starts the main RHDWP Traefik router stack. 
 #	Also used to rebuild config files.
 #
-##################################################################
-# Change History #################################################
-##################################################################
+####################
+## Change History ##
+####################
 #
 # 12/24/2019  Finally added this changelog.
 #               Add documentation and restructure for long-term
@@ -21,30 +21,29 @@ set -e
 # 1/8/2020    LegacyChecks for old version cleanups
 # 1/17/2020   API/Adminer/Staging flags
 #
-##################################################################
-# Help ###########################################################
-##################################################################
+##########
+## Help ##
+##########
 
 Help()
 {
 	# Display Help
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
-	echo "Syntax: startTraefik [-h][-d][-f][-a][-m dir_name][-s]"
+	echo "Syntax: startTraefik [-h][-d][-f][-a][-m dirname][-s]"
 	echo "options:"
-	echo "-h          Print this Help."
-	echo "-d          Development mode (implies -a)"
-	echo "-f          Freshen site stacks in www/ directory"
-	echo "-a          Enable dashboard."
-	echo "-m dirname  Enable MySQL adminer dashboard for a project"
-	echo "              using the directory name (xyz.com => xyzcom)"
-	echo "-s          LetsEncrypt Staging server"
+	echo "-h            Print this Help."
+	echo "-d            Development mode (implies -a)"
+	echo "-f            Freshen site stacks in www/ directory"
+	echo "-a            Enable dashboard."
+	echo "-m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
+	echo "-s            LetsEncrypt Staging server"
 	echo
 }
 
-##################################################################
-# Functions ######################################################
-##################################################################
+###############
+## Functions ##
+###############
 
 SanityChecks()
 {
@@ -71,7 +70,6 @@ LegacyChecks()
 		rm -rf "${rootDir}/log"
 	fi
 }
-
 
 AskEnv()
 {
@@ -114,7 +112,7 @@ WriteEnv()
 {
 	# Write to .env and lock it down
 
-	cat <<-EOT > "$env_file"
+	cat <<-EOT > "$envFile"
 	FQDN=$(hostname -f)
 	CF_API_EMAIL=$CF_API_EMAIL
 	CF_API_KEY=$CF_API_KEY
@@ -124,8 +122,8 @@ WriteEnv()
 	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
-	sudo chown "$USER" "$env_file"
-	sudo chmod 600 "$env_file"
+	sudo chown "$USER" "$envFile"
+	sudo chmod 600 "$envFile"
 }
 
 GenerateComposeFile()
@@ -157,12 +155,12 @@ SetupFiles()
 	# Generate storage and log files, if necessary
 
 	## Logs
-	logdir="${traefikDir}/log"
-	if [[ ! -d "$logdir" ]]; then
-		mkdir "$logdir"
+	logDir="${traefikDir}/log"
+	if [[ ! -d "$logDir" ]]; then
+		mkdir "$logDir"
 	fi
 
-	log="${logdir}/error.log"
+	log="${logDir}/error.log"
 	if [[ ! -f "$log" ]]; then
 		touch "$log"
 	fi
@@ -176,11 +174,11 @@ SetupFiles()
 	fi
 
 	## Environment variables file
-	env_file="${traefikDir}/.env"
-	if [[ -r "$env_file" ]]; then
+	envFile="${traefikDir}/.env"
+	if [[ -r "$envFile" ]]; then
 		# shellcheck disable=SC1091
 		# shellcheck source=/srv/rhdwp/traefik/.env
-		. "$env_file"
+		. "$envFile"
 	fi
 
 	## Create sites directory
@@ -212,9 +210,9 @@ FreshenSites()
 	done
 }
 
-##################################################################
-# Main ###########################################################
-##################################################################
+#########
+# Main ##
+#########
 ## Initialize variables
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
