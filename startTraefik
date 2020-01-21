@@ -30,14 +30,15 @@ Help()
 	# Display Help
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
-	echo "Syntax: startTraefik [-h][-d][-f][-a][-m project_name][-s]"
+	echo "Syntax: startTraefik [-h][-d][-f][-a][-m dir_name][-s]"
 	echo "options:"
-	echo "-h         Print this Help."
-	echo "-d         Development mode (implies -a)"
-	echo "-f         Freshen site stacks in www/ directory"
-	echo "-a         Enable dashboard."
-	echo "-m name    Enable MySQL adminer dashboard for a project"
-	echo "-s         LetsEncrypt Staging server"
+	echo "-h          Print this Help."
+	echo "-d          Development mode (implies -a)"
+	echo "-f          Freshen site stacks in www/ directory"
+	echo "-a          Enable dashboard."
+	echo "-m dirname  Enable MySQL adminer dashboard for a project"
+	echo "              using the directory name (xyz.com => xyzcom)"
+	echo "-s          LetsEncrypt Staging server"
 	echo
 }
 
@@ -138,7 +139,8 @@ GenerateComposeFile()
 	fi
 
 	if [[ "$adminer" = true ]] && [[ ! -z "$adminerProject" ]]; then
-		# Enable adminer for specified project (using PROJECT_NAME envvar)
+		# Enable adminer for specified project (using the stack's directory)
+		# e.g. use `abccom` for www/abc.com
 		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
 		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerProject}/g" "$composeTemporary"
 	fi
