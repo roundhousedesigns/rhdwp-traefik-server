@@ -241,7 +241,7 @@ SystemCronJob()
 		_label=${_dir//./}
 
 		# Add to the jobs list
-		_jobs+="${_datetime} wget -q -O - https://${_label}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
+		_jobs+="${_datetime} wget -q -O - https://${_dir}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
 	done
 
 	# Remove trailing '\n' lazy bastard
