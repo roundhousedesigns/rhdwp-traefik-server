@@ -260,6 +260,14 @@ SystemCronJob()
 	rm "$_tmpfile"
 }
 
+FinishUp()
+{
+	# Remove temp files
+	if [[ -f "$composeTemporary" ]]; then
+		rm "$composeTemporary"
+	fi
+}
+
 #########
 # Main ##
 #########
@@ -268,7 +276,7 @@ rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
-composeTemporary="${traefikDir}/docker-compose.yml~"
+composeTemporary=$(mktemp)
 composeFile="${traefikDir}/docker-compose.yml"
 devMode=false
 freshenMode=false
@@ -345,3 +353,6 @@ GenerateComposeFile
 if [[ "$freshenMode" = true ]]; then
 	FreshenSites
 fi
+
+## Clean up after yourself...
+FinishUp
