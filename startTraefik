@@ -347,7 +347,7 @@ WriteEnv
 GenerateComposeFile
 
 ## Start traefik
-( cd "$traefikDir" && docker-compose pull && ( docker-compose down -v --remove-orphans || true ) && docker-compose up -d --remove-orphans )
+( cd "$traefikDir" && docker-compose pull -q && ( docker-compose down -v --remove-orphans || true ) && docker-compose up -d --remove-orphans )
 
 ## Freshen site stacks
 if [[ "$freshenMode" = true ]]; then
