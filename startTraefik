@@ -222,7 +222,7 @@ SystemCronJob()
 	local _cmtStart
 	local _cmtEnd
 	local _jobs
-	_datetime='*/15 * * * *'
+	_datetime='*/5 * * * *'
 	_tmpfile=$(mktemp)
 	_cmtStart='# RHDWP Cron #'
 	_cmtEnd='# RHDWP Cron end #'
