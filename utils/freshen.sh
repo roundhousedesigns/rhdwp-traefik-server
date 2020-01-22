@@ -4,9 +4,6 @@
 
 set -e
 
-echo "Checking sudo freshness..."
-sudo echo "Done."
-
 # Cleanup first
 docker system prune --volumes -f
 
