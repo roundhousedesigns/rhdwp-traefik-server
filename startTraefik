@@ -130,6 +130,7 @@ WriteEnv()
 GenerateComposeFile()
 {
 	# Create/edit docker-compose.yml
+	# TODO: use mktemp
 	cp "$composeTemplate" "$composeTemporary"
 
 	if [[ "$api" = true ]]; then
@@ -141,6 +142,8 @@ GenerateComposeFile()
 		# Enable adminer for specified project (using the stack's directory)
 		# e.g. use `abccom` for www/abc.com
 		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
+		
+		# todo: use $PROJECT_LABEL envvar and move this out of Adminer block (keep in this function, though)
 		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerProject}/g" "$composeTemporary"
 	fi
 
@@ -244,8 +247,8 @@ SystemCronJob()
 	# Remove trailing '\n' lazy bastard
 	_jobs="${_jobs%??}"
 
-	# Delete existing entries, or add entry point comments
-	if grep -q '# RHDWP Cron #' "$_tmpfile"; then
+	# Delete existing entries, or else add entry point comments
+	if grep -q "$_cmtStart" "$_tmpfile"; then
 		sed -i "/$_cmtStart/,/$_cmtEnd/{//!d}" "$_tmpfile"
 	else
 		printf "\n%s\n%s" "$_cmtStart" "$_cmtEnd" >> "$_tmpfile"
