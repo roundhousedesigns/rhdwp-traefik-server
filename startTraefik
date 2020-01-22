@@ -235,10 +235,6 @@ SystemCronJob()
 	_jobs=
 	for d in $wwwDir/*; do
 		_dir="${d##*/}"
-		
-		# Strip '.' character from domains
-		# TODO: Implement true docker label sanitization scheme
-		_label=${_dir//./}
 
 		# Add to the jobs list
 		_jobs+="${_datetime} wget -q -O - https://${_dir}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
