@@ -2,7 +2,7 @@
 set -e
 
 ##################
-## startTraefik ##
+## rhdwpTraefik ##
 ##################
 #
 # Sets up and (re)starts the main RHDWP Traefik router stack. 
@@ -21,6 +21,7 @@ set -e
 # 1/8/2020     LegacyChecks for old version cleanups.
 # 1/17/2020    API/Adminer/Staging flags.
 # 1/21/2020    Replace WP's native cron with a system cronjob.
+# 1/24/2020    Name change
 #
 ##########
 ## Help ##
@@ -31,7 +32,7 @@ Help()
 	# Display Help
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
-	echo "Syntax: startTraefik [-h][-d][-f][-a][-m dirname][-s]"
+	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
 	echo "options:"
 	echo "-h            Print this Help."
 	echo "-d            Development mode (implies -a)"
@@ -39,6 +40,7 @@ Help()
 	echo "-a            Enable dashboard."
 	echo "-m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
 	echo "-s            LetsEncrypt Staging server"
+	echo "-a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo
 }
 
@@ -214,7 +216,7 @@ FreshenSites()
 	done
 }
 
-SystemCronJob()
+InstallSystemCron()
 {
 	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
 	local _datetime
@@ -260,6 +262,31 @@ SystemCronJob()
 	rm "$_tmpfile"
 }
 
+RemoveSystemCron()
+{
+	# Removes the wget commands (wp_cron triggering) from the $USER system crontab
+	local _tmpfile
+	local _cmtStart
+	local _cmtEnd
+	_tmpfile=$(mktemp)
+	_cmtStart='# RHDWP Cron #'
+	_cmtEnd='# RHDWP Cron end #'
+	
+	# Load the current crontab
+	crontab -l > "$_tmpfile"
+	
+	# Find and remove the job(s)
+	if grep -q "$_cmtStart" "$_tmpfile"; then
+		sed -i "/$_cmtStart/,/$_cmtEnd/d" "$_tmpfile"
+	fi
+
+	# Install the new crontab
+	crontab -u "$USER" "$_tmpfile"
+
+	# Clean up
+	rm "$_tmpfile"
+}
+
 FinishUp()
 {
 	# Remove temp files
@@ -278,17 +305,17 @@ wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary=$(mktemp)
 composeFile="${traefikDir}/docker-compose.yml"
+network=web
 devMode=false
 freshenMode=false
 api=
 adminer=
 certStaging=
-network=web
 
-SystemCronJob
+InstallSystemCron
 
 ## Get options
-while getopts "hdfam:s" opt; do
+while getopts "hdfam:sk" opt; do
 	case "$opt" in
 	h) # display Help
 		Help
@@ -319,6 +346,11 @@ while getopts "hdfam:s" opt; do
 	s) # LetsEncrypt staging mode
 		echo "Using LetsEncrypt staging server"
 		certStaging=true
+		;;
+	k) # Kill the server and cleanup
+		( cd "$traefikDir" && docker-compose down --remove-orphans -v )
+		RemoveSystemCron
+		exit 0
 		;;
 	\?) # invalid option
 		echo "Invalid option: -$OPTARG" >&2
