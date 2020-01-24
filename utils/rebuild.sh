@@ -14,6 +14,6 @@ for d in /srv/rhdwp/www/*; do
   git -C "${d}" pull -q
 
   # Restart
-  cd "${d}" && ./buildStack -r && cd "${wd}"
+  cd "${d}" && ./rhdwpStack -r && cd "${wd}"
 done
 docker system prune --volumes -f
