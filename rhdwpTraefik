@@ -193,7 +193,7 @@ SetupFiles()
 	fi
 
 	## wp-cli permissions
-	sudo chown -R www-data:www-data "${rootDir}/wp-cli"
+	sudo chown -R www-data:www-data "${rootDir}/.wp-cli"
 }
 
 FreshenSites()

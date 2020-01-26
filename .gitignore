@@ -6,5 +6,5 @@ traefik/acme.json
 traefik/traefik.toml
 traefik/docker-compose.yml
 
-wp-cli/*
-!wp-cli/config.yml
+.wp-cli/*
+!.wp-cli/config.yml
