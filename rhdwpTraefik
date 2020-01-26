@@ -67,7 +67,8 @@ SanityChecks()
 
 LegacyChecks()
 {
-	# Housekeeping
+	# Housekeeping section
+	# Place one-off or immediate-use actions here.
 	local _oldCliDir
 	local _newCliDir
 	_oldCliDir="${rootDir}/wp-cli"
