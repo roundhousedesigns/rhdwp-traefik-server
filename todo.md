@@ -6,7 +6,3 @@ RHDWP Traefik Server TODO
 disable_wp_cron
 ---
 - better project name extration than just directory name (innacurate/PITA)
-	
-- create STOP script
-	- cleanup:
-		- remove wp cron job
