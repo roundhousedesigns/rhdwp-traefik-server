@@ -77,9 +77,9 @@ LegacyChecks()
 	# Move (or remove) ./wp-cli to ./.wp-cli
 	if [[ -d "$_oldCliDir" ]]; then
 		if [[ -d "$_newCliDir" ]]; then
-			rm -rf "$_oldCliDir"
+			sudo rm -rf "$_oldCliDir"
 		else
-			mv "$_oldCliDir" "$_newCliDir"
+			sudo mv "$_oldCliDir" "$_newCliDir"
 		fi
 	fi
 }
