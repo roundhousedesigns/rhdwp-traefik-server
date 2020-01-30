@@ -7,10 +7,6 @@ profile=/home/gaswirth/.profile
 b2secrets=/home/gaswirth/.b2secrets
 tempSecrets=/tmp/b2secrets
 
-# Check for sudo
-sudo echo "Checking sudo freshness..."
-sudo echo "Done."
-
 # get secrets
 ## AFTER RUNNING, THIS GIST WILL BE DELETED AND THIS SCRIPT WILL DIE!
 wget -O "$tempSecrets" https://gist.githubusercontent.com/gaswirth/21f27ae2ce934185e2e2699a632bc152/raw/.tempb2
