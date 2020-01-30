@@ -229,7 +229,6 @@ FreshenSites()
 InstallSystemCron()
 {
 	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
-	local _oldCron
 	local _datetime
 	local _tmpfile
 	local _cmtStart
@@ -242,13 +241,13 @@ InstallSystemCron()
 	_tmpfile=$(mktemp)
 	_cmtStart='# RHDWP Cron #'
 	_cmtEnd='# RHDWP Cron end #'
-	_jobs=
 	_cronLines=(
 		"# Update WP"
 		"@daily ${utilsDir}/update.sh"
 		"# Start RHDWP server (traefik) at reboot with launch script"
 		"@reboot ${rootDir}/startTraefik"
 	)
+	_jobs=
 	_allJobs=
 
 	# Load the current crontab
@@ -257,16 +256,19 @@ InstallSystemCron()
 	fi
 
 	# Generate the individual WP_Cron lines
-	_jobs='# www\n'
-	for d in $wwwDir/*; do
-		_dir="${d##*/}"
+	wwwCount=$(find "${wwwDir}" -maxdepth 1 -type d | wc -l)
+	if [[ $wwwCount -gt 1 ]]; then
+		_jobs='# www\n'
+		for d in $wwwDir/*; do
+			_dir="${d##*/}"
 
-		# Add to the jobs list
-		_jobs+="${_datetime} wget -q -O - https://${_dir}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
-	done
+			# Add to the jobs list
+			_jobs+="${_datetime} wget -q -O - https://${_dir}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
+		done
 
-	# Remove trailing '\n' lazy bastard
-	_jobs="${_jobs%??}"
+		# Remove trailing '\n' lazy bastard
+		_jobs="${_jobs%??}"
+	fi
 
 	# Delete existing entries, or else add entry point comments
 	if grep -q "$_cmtStart" "$_tmpfile"; then
