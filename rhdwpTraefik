@@ -22,6 +22,7 @@ set -e
 # 1/17/2020    API/Adminer/Staging flags.
 # 1/21/2020    Replace WP's native cron with a system cronjob.
 # 1/24/2020    Name change
+# 1/30/2020    Added core cron jobs
 #
 ##########
 ## Help ##
@@ -233,18 +234,27 @@ InstallSystemCron()
 	local _tmpfile
 	local _cmtStart
 	local _cmtEnd
+	local _cronLines
 	local _jobs
+	local _allJobs
 	_datetime='*/5 * * * *'
 	_tmpfile=$(mktemp)
 	_cmtStart='# RHDWP Cron #'
 	_cmtEnd='# RHDWP Cron end #'
 	_jobs=
+	_cronLines=(
+		"# Update WP"
+		"@daily ${utilsDir}/update.sh"
+		"# Start RHDWP server (traefik) at reboot with launch script"
+		"@reboot ${rootDir}/startTraefik"
+	)
+	_allJobs=
 
 	# Load the current crontab
 	crontab -l > "$_tmpfile"
 
-	# Generate the cronjob lines
-	_jobs=
+	# Generate the individual WP_Cron lines
+	_jobs='# www\n'
 	for d in $wwwDir/*; do
 		_dir="${d##*/}"
 
@@ -259,17 +269,29 @@ InstallSystemCron()
 	if grep -q "$_cmtStart" "$_tmpfile"; then
 		sed -i "/$_cmtStart/,/$_cmtEnd/{//!d}" "$_tmpfile"
 	else
-		printf "\n%s\n%s" "$_cmtStart" "$_cmtEnd" >> "$_tmpfile"
+		printf "%s\n%s" "$_cmtStart" "$_cmtEnd" >> "$_tmpfile"
 	fi
 
+	# Combine core tasks with generated jobs
+	for line in "${_cronLines[@]}"; do
+		if ! grep -q "$line" "$_tmpfile"; then
+			_allJobs+="$line\n"
+		fi
+	done
+	_allJobs+="${_jobs}"
+
+	echo "$_allJobs"
+
 	# Insert the new cron jobs
-	sed -i "/$_cmtStart/a $_jobs" "$_tmpfile"
+	sed -i "/$_cmtStart/a $_allJobs" "$_tmpfile"
 
 	# Install the new crontab
 	crontab -u "$USER" "$_tmpfile"
 
 	# Clean up
 	rm "$_tmpfile"
+
+	exit
 }
 
 RemoveSystemCron()
@@ -311,6 +333,7 @@ FinishUp()
 ## Initialize variables
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
+utilsDir="${rootDir}/utils"
 wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary=$(mktemp)
@@ -321,8 +344,6 @@ freshenMode=false
 api=
 adminer=
 certStaging=
-
-InstallSystemCron
 
 ## Get options
 while getopts "hdfam:sk" opt; do
@@ -384,6 +405,9 @@ fi
 ## Retrieve or prompt for environment variables, and export to .env
 AskEnv
 WriteEnv
+
+## System setup
+InstallSystemCron
 
 ## Enable Development Mode
 GenerateComposeFile
