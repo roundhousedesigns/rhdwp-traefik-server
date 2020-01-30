@@ -237,7 +237,6 @@ InstallSystemCron()
 	local _cronLines
 	local _jobs
 	local _allJobs
-	exit
 
 	_datetime='*/5 * * * *'
 	_tmpfile=$(mktemp)
