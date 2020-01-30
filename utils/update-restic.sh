@@ -4,7 +4,7 @@ set -e
 ## Updates restic backup actions, and installs envvars
 
 profile=/home/gaswirth/.profile
-b2secrets=/root/.b2secrets
+b2secrets=/home/gaswirth/.b2secrets
 tempSecrets=/tmp/b2secrets
 
 # get secrets
@@ -26,14 +26,13 @@ if ! grep -q 'B2/restic' "$profile"; then
 fi
 
 # Also create a secrets file for cron access
-_b2secrets=$(mktemp)
 {
 	echo "B2_ACCOUNT_ID=${B2_ACCOUNT_ID}"
 	echo "B2_ACCOUNT_KEY=${B2_ACCOUNT_KEY}"
 	echo "RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE"
-} >> "$_b2secrets"
+} >> "$b2secrets"
 
 # run these manually:
-# sudo mv "$_b2secrets" "$b2secrets"
+# sudo mv "$b2secrets" "/root/.b2secrets"
 # sudo chown root:root "$b2secrets"
 # sudo chmod 600 "$b2secrets"
