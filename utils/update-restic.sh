@@ -9,11 +9,11 @@ tempSecrets=/tmp/b2secrets
 
 # get secrets
 ## AFTER RUNNING, THIS GIST WILL BE DELETED AND THIS SCRIPT WILL DIE!
-wget -O "$tempSecrets" https://gist.githubusercontent.com/gaswirth/21f27ae2ce934185e2e2699a632bc152/raw/891d61fbf39c2864602055d4c45249a058cb58ae/.tempb2
+wget -O "$tempSecrets" https://gist.githubusercontent.com/gaswirth/21f27ae2ce934185e2e2699a632bc152/raw/.tempb2
 source "$tempSecrets"
 
 # replace ~/scripts/restic-backup.sh
-wget -O /home/gaswirth/scripts/restic-backup.sh https://gist.githubusercontent.com/gaswirth/7adc52eef913c4416797cfc0359ca4e9/raw/3eb07ad2a8cb26347357c7a9782b61725e0fa46c/restic-backup.sh
+wget -O /home/gaswirth/scripts/restic-backup.sh https://gist.githubusercontent.com/gaswirth/7adc52eef913c4416797cfc0359ca4e9/raw/restic-backup.sh
 
 if ! grep -q 'B2/restic' "$profile"; then
 	{
