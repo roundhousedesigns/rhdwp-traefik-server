@@ -291,8 +291,6 @@ InstallSystemCron()
 
 	# Clean up
 	rm "$_tmpfile"
-
-	exit
 }
 
 RemoveSystemCron()
