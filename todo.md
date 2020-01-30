@@ -1,7 +1,7 @@
 RHDWP Traefik Server TODO
 ===
-- Check if git pull is necessary before running, and 
-	- Command: $(git rev-parse HEAD) == $(git rev-parse @{u}))
+- Fold in rhdwp-docker repo (www stack)
+- auto add/remove cron job when www stack joins/leaves the server
 
 disable_wp_cron
 ---
