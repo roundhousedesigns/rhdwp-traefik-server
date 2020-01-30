@@ -229,6 +229,7 @@ FreshenSites()
 InstallSystemCron()
 {
 	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
+	local _oldCron
 	local _datetime
 	local _tmpfile
 	local _cmtStart
@@ -236,6 +237,10 @@ InstallSystemCron()
 	local _cronLines
 	local _jobs
 	local _allJobs
+	_oldCron=$(crontab -l)
+	echo "$_oldCron"
+	exit
+
 	_datetime='*/5 * * * *'
 	_tmpfile=$(mktemp)
 	_cmtStart='# RHDWP Cron #'
@@ -250,7 +255,9 @@ InstallSystemCron()
 	_allJobs=
 
 	# Load the current crontab
-	crontab -l > "$_tmpfile"
+	if [[ -f "/var/spool/cron/crontabs/${USER}" ]]; then
+		crontab -l > "$_tmpfile"
+	fi
 
 	# Generate the individual WP_Cron lines
 	_jobs='# www\n'
