@@ -143,7 +143,6 @@ WriteEnv()
 GenerateComposeFile()
 {
 	# Create/edit docker-compose.yml
-	# TODO: use mktemp
 	cp "$composeTemplate" "$composeTemporary"
 
 	if [[ "$api" = true ]]; then
@@ -279,8 +278,6 @@ InstallSystemCron()
 		fi
 	done
 	_allJobs+="${_jobs}"
-
-	echo "$_allJobs"
 
 	# Insert the new cron jobs
 	sed -i "/$_cmtStart/a $_allJobs" "$_tmpfile"
