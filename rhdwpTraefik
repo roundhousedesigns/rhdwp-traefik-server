@@ -349,7 +349,7 @@ while getopts "hdfam:sk" opt; do
 	case "$opt" in
 	h) # display Help
 		Help
-		exit
+		exit 0
 		;;
 	d) # Development mode
 		echo "Development mode enabled."
