@@ -36,7 +36,4 @@ fi
 	echo "RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE"
 } > "$b2secrets"
 
-# run these manually:
-# sudo mv "$b2secrets" "/root/.b2secrets"
-# sudo chown root:root "$b2secrets"
-# sudo chmod 600 "$b2secrets"
+chmod 600 "$b2secrets"
