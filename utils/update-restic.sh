@@ -33,6 +33,7 @@ _b2secrets=$(mktemp)
 	echo "RESTIC_PASSWORD_FILE=$RESTIC_PASSWORD_FILE"
 } >> "$_b2secrets"
 
-sudo mv "$_b2secrets" "$b2secrets"
-sudo chown root:root "$b2secrets"
-sudo chmod 600 "$b2secrets"
+# run these manually:
+# sudo mv "$_b2secrets" "$b2secrets"
+# sudo chown root:root "$b2secrets"
+# sudo chmod 600 "$b2secrets"
