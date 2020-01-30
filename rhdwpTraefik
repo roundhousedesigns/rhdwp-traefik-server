@@ -237,8 +237,6 @@ InstallSystemCron()
 	local _cronLines
 	local _jobs
 	local _allJobs
-	_oldCron=$(crontab -l)
-	echo "$_oldCron"
 	exit
 
 	_datetime='*/5 * * * *'
