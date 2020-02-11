@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/bin/bash -e
 
 ## Rebuilds stacks with --force-recreate
 
-set -e
+echo "Checking sudo freshness..."
+sudo echo "Done."
 
 wd=$(pwd)
 
