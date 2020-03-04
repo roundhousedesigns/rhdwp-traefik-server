@@ -4,7 +4,7 @@
 # docker pull wordpress:latest
 
 for d in /srv/rhdwp/www/*; do
-	echo "Processing ${d}}"
+	echo "Processing ${d}"
 	(
 		cd "${d}" || exit
 
