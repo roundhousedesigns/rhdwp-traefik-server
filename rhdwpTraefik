@@ -150,13 +150,12 @@ GenerateComposeFile()
 		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
 	fi
 
-	if [[ "$adminer" = true ]] && [[ ! -z "$adminerProject" ]]; then
+	if [[ "$adminer" = true ]] && [[ ! -z "$adminerVhost" ]]; then
 		# Enable adminer for specified project (using the stack's directory)
 		# e.g. use `abccom` for www/abc.com
+		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_]' | tr '[:upper:]' '[:lower:]')
 		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
-		
-		# todo: use $PROJECT_LABEL envvar and move this out of Adminer block (keep in this function, though)
-		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerProject}/g" "$composeTemporary"
+		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$composeTemporary"
 	fi
 
 	if [[ "$certStaging" = true ]]; then
@@ -364,8 +363,8 @@ while getopts "hdfam:sk" opt; do
 	m) # Enable adminer for a project
 		if [[ ! -z "$OPTARG" ]]; then
 			adminer=true
-			adminerProject=${OPTARG}
-			echo "Adminer enabled for ${adminerProject}"
+			adminerVhost=${OPTARG}
+			echo "Adminer enabled for ${adminerVhost}"
 		else
 			echo "Error: The -m option requires an argument."
 			exit 1
