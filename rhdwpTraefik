@@ -23,7 +23,9 @@ set -e
 # 1/21/2020    Replace WP's native cron with a system cronjob.
 # 1/24/2020    Name change
 # 1/30/2020    Added core cron jobs
-# 3/6/2020     Added [-c] cron regen flag; Added [-n] newsite flag.
+# 3/6/2020     Added [-c] cron regen flag; Added [-n] newsite flag;
+#                Added cron job to core for auto-scanning for
+#                new/removed sites.
 #
 ##########
 ## Help ##
@@ -246,7 +248,9 @@ InstallSystemCron()
 		"# Update WP"
 		"@daily ${utilsDir}/update.sh"
 		"# Start RHDWP server (traefik) at reboot with launch script"
-		"@reboot ${rootDir}/startTraefik"
+		"@reboot ${rootDir}/rhdwpTraefik"
+		"# Scan for changes in www/"
+		"@hourly ${rootDir}/rhdwpTraefik -c"
 	)
 	_jobs=
 	_allJobs=
