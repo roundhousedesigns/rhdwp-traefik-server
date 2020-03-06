@@ -23,6 +23,7 @@ set -e
 # 1/21/2020    Replace WP's native cron with a system cronjob.
 # 1/24/2020    Name change
 # 1/30/2020    Added core cron jobs
+# 3/6/2020     Added [-c] cron regen flag; Added [-n] newsite flag.
 #
 ##########
 ## Help ##
@@ -33,9 +34,10 @@ Help()
 	# Display Help
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
-	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
+	echo "Syntax: rhdwpTraefik [-h][-c][-d][-f][-a][-m dirname][-s][-k]"
 	echo "options:"
 	echo "-h            Print this Help."
+	echo "-c            Regenerate crontab only."
 	echo "-d            Development mode (implies -a)"
 	echo "-f            Freshen site stacks in www/ directory"
 	echo "-a            Enable dashboard."
@@ -319,6 +321,34 @@ RemoveSystemCron()
 	rm "$_tmpfile"
 }
 
+StopServer()
+{
+	# Stop the main traefik stack and clean up
+	( cd "$traefikDir" && docker-compose down --remove-orphans -v )
+	RemoveSystemCron
+}
+
+NewSite()
+{
+	# Create a new site stack in www/
+	# $1: the stack directory name (domain)
+	_dir="$1"
+	_sitePath="${wwwDir}/${_dir}"
+
+	# Sanity check
+	if [ -z "$_dir" ]; then
+		echo "No directory name supplied."
+		exit 1
+	fi
+	
+	# Get in there and start
+	(
+		git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
+		cd "$_sitePath" || exit
+		./rhdwpStack
+	)
+}
+
 FinishUp()
 {
 	# Remove temp files
@@ -346,10 +376,16 @@ adminer=
 certStaging=
 
 ## Get options
-while getopts "hdfam:sk" opt; do
+while getopts "hcdfam:n:sk" opt; do
 	case "$opt" in
 	h) # display Help
 		Help
+		exit 0
+		;;
+	c) # Regenerate cron jobs, and exit
+		echo "Regenerating cron jobs..."
+		InstallSystemCron
+		echo "Done."
 		exit 0
 		;;
 	d) # Development mode
@@ -358,16 +394,17 @@ while getopts "hdfam:sk" opt; do
 		api=true
 		;;
 	a) # API/Dashboard enabled
+		echo "Dashboard enabled."
 		api=true
 		;;
 	m) # Enable adminer for a project
-		if [[ ! -z "$OPTARG" ]]; then
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -m option requires an argument (docker network prefix)."
+			exit 1
+		else
 			adminer=true
 			adminerVhost=${OPTARG}
 			echo "Adminer enabled for ${adminerVhost}"
-		else
-			echo "Error: The -m option requires an argument."
-			exit 1
 		fi
 		;;
 	f) # Freshen sites (www/ site stacks)
@@ -379,9 +416,20 @@ while getopts "hdfam:sk" opt; do
 		certStaging=true
 		;;
 	k) # Kill the server and cleanup
-		( cd "$traefikDir" && docker-compose down --remove-orphans -v )
-		RemoveSystemCron
+		echo "Stopping main server and cleaning up..."
+		StopServer
+		echo "Done."
 		exit 0
+		;;
+	n) # Start a new site, and exit
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -n option requires an argument (directory name)."
+			exit 1
+		else
+			echo "Creating www/${OPTARG}"
+			NewSite "${OPTARG}"
+			exit 0
+		fi
 		;;
 	\?) # invalid option
 		echo "Invalid option: -$OPTARG" >&2
@@ -405,6 +453,7 @@ fi
 ## Retrieve or prompt for environment variables, and export to .env
 AskEnv
 WriteEnv
+
 
 ## System setup
 InstallSystemCron

@@ -1,8 +1,5 @@
-#!/bin/bash
-
+#!/bin/bash -e
 ## Rebuilds stacks without forcing container recreation (fast)
-
-set -e
 
 # Cleanup first
 docker system prune --volumes -f
