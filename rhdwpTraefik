@@ -41,9 +41,10 @@ Help()
 	echo "-h            Print this Help."
 	echo "-c            Regenerate crontab only."
 	echo "-d            Development mode (implies -a)"
-	echo "-f            Freshen site stacks in www/ directory"
+	echo "-f            Freshen site stacks in the www/ directory"
 	echo "-a            Enable dashboard."
 	echo "-m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
+	echo "-n dirname    Create a new site stack in the www/ directory"
 	echo "-s            LetsEncrypt Staging server"
 	echo "-a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo
