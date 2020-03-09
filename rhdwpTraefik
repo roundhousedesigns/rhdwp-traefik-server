@@ -90,6 +90,18 @@ LegacyChecks()
 	fi
 }
 
+GitRepoNeedsUpdate()
+{
+	git fetch
+	_branch=$(git rev-parse --abbrev-ref HEAD)
+	_headHash=$(git rev-parse HEAD)
+	#shellcheck disable=SC1083
+	_upstreamHash=$(git rev-parse master@{upstream})
+
+	# Return the result
+	[[ "$_headHash" != "$_upstreamHash" ]]
+}
+
 AskEnv()
 {
 	# Verify .env values
@@ -212,21 +224,27 @@ SetupFiles()
 
 FreshenSites()
 {
-	local _cwd="$PWD"
 	for d in "${wwwDir}"/*; do
-		dir="${d##*/}"
+		_dir="${d##*/}"
 
-		echo "UPDATE $dir"
-		git -C "$d" checkout master
-		git -C "$d" pull -q
-
-		# Rebuild
-		if [[ -f "${d}/rhdwpStack" ]]; then
+		(
 			cd "$d"
-			sudo -u "$USER" ./rhdwpStack -q
-		fi
-		
-		cd "$_cwd"
+
+			if GitRepoNeedsUpdate; then
+				# Update and rebuild
+				echo "UPDATE $_dir"
+
+				# Check for master branch
+				if [[ "$_branch" != "master" ]]; then
+					git checkout master
+				fi
+
+				git pull -q
+				sudo -u "$USER" ./rhdwpStack -q
+			else
+				echo "$_dir already up to date. Skipping..."
+			fi
+		)
 	done
 }
 
@@ -459,7 +477,6 @@ fi
 AskEnv
 WriteEnv
 
-
 ## System setup
 InstallSystemCron
 
@@ -467,7 +484,13 @@ InstallSystemCron
 GenerateComposeFile
 
 ## Start traefik
-( cd "$traefikDir" && docker-compose pull -q && ( docker-compose down -v --remove-orphans || true ) && docker-compose up -d --remove-orphans )
+(
+	cd "$traefikDir"
+	
+	docker-compose pull -q
+	( docker-compose down -v --remove-orphans || true )
+	docker-compose up -d --remove-orphans
+)
 
 ## Freshen site stacks
 if [[ "$freshenMode" = true ]]; then
