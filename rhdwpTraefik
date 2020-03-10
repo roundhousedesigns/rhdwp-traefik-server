@@ -92,7 +92,6 @@ LegacyChecks()
 GitRepoNeedsUpdate()
 {
 	git fetch
-	_branch=$(git rev-parse --abbrev-ref HEAD)
 	_headHash=$(git rev-parse HEAD)
 	#shellcheck disable=SC1083
 	_upstreamHash=$(git rev-parse master@{upstream})
@@ -225,6 +224,7 @@ RunStackScripts()
 {
 	for d in "${wwwDir}"/*; do
 		_dir="${d##*/}"
+		_branch=$(git rev-parse --abbrev-ref HEAD)
 		_flags=" -q"
 
 		(
