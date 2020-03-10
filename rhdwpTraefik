@@ -38,12 +38,13 @@ Help()
 	echo "Syntax: rhdwpTraefik [-h][-c][-d][-f][-a][-m dirname][-s][-k]"
 	echo "options:"
 	echo "-h            Print this Help."
-	echo "-c            Regenerate crontab only."
+	echo "-a            Enable dashboard."
+	echo "-c            Regenerate crontab (only)"
 	echo "-d            Development mode (implies -a)"
 	echo "-f            Freshen site stacks in the www/ directory"
-	echo "-a            Enable dashboard."
 	echo "-m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
 	echo "-n dirname    Create a new site stack in the www/ directory"
+	echo "-p            Freshen stacks and run patches"
 	echo "-s            LetsEncrypt Staging server"
 	echo "-a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo
@@ -459,7 +460,7 @@ while getopts "hacdfkm:n:ps" opt; do
 			exit 0
 		fi
 		;;
-	p) # Run available patches on site stacks
+	p) # Update and run patches
 		freshen=true
 		patchSites=true
 		;;
