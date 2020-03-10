@@ -1,5 +1,4 @@
-#!/bin/bash
-set -e
+#!/bin/bash -e
 
 ##################
 ## rhdwpTraefik ##
@@ -222,14 +221,15 @@ SetupFiles()
 	sudo chown -R www-data:www-data "${rootDir}/.wp-cli"
 }
 
-FreshenSites()
+RunStackScripts()
 {
 	for d in "${wwwDir}"/*; do
 		_dir="${d##*/}"
+		_flags=" -q"
 
 		(
 			cd "$d"
-
+			
 			if GitRepoNeedsUpdate; then
 				# Update and rebuild
 				echo "UPDATE $_dir"
@@ -240,10 +240,16 @@ FreshenSites()
 				fi
 
 				git pull -q
-				sudo -u "$USER" ./rhdwpStack -q
-			else
-				echo "$_dir already up to date. Skipping..."
 			fi
+
+			# Add the patch flag
+			if [[ "$patchSites" == true ]]; then
+				_flags+=" -p"
+			fi
+
+			# Run
+			# shellcheck disable=SC2086
+			sudo -u "$USER" ./rhdwpStack $_flags
 		)
 	done
 }
@@ -393,17 +399,22 @@ composeTemporary=$(mktemp)
 composeFile="${traefikDir}/docker-compose.yml"
 network=web
 devMode=false
-freshenMode=false
+freshen=false
+patchSites=false
 api=
 adminer=
 certStaging=
 
 ## Get options
-while getopts "hcdfam:n:sk" opt; do
+while getopts "hacdfkm:n:ps" opt; do
 	case "$opt" in
 	h) # display Help
 		Help
 		exit 0
+		;;
+	a) # API/Dashboard enabled
+		echo "Dashboard enabled."
+		api=true
 		;;
 	c) # Regenerate cron jobs, and exit
 		echo "Regenerating cron jobs..."
@@ -414,10 +425,6 @@ while getopts "hcdfam:n:sk" opt; do
 	d) # Development mode
 		echo "Development mode enabled."
 		devMode=true
-		api=true
-		;;
-	a) # API/Dashboard enabled
-		echo "Dashboard enabled."
 		api=true
 		;;
 	m) # Enable adminer for a project
@@ -432,11 +439,7 @@ while getopts "hcdfam:n:sk" opt; do
 		;;
 	f) # Freshen sites (www/ site stacks)
 		echo "Freshen sites"
-		freshenMode=true
-		;;
-	s) # LetsEncrypt staging mode
-		echo "Using LetsEncrypt staging server"
-		certStaging=true
+		freshen=true
 		;;
 	k) # Kill the server and cleanup
 		echo "Stopping main server and cleaning up..."
@@ -453,6 +456,14 @@ while getopts "hcdfam:n:sk" opt; do
 			NewSite "${OPTARG}"
 			exit 0
 		fi
+		;;
+	p) # Run available patches on site stacks
+		freshen=true
+		patchSites=true
+		;;
+	s) # LetsEncrypt staging mode
+		echo "Using LetsEncrypt staging server"
+		certStaging=true
 		;;
 	\?) # invalid option
 		echo "Invalid option: -$OPTARG" >&2
@@ -493,8 +504,8 @@ GenerateComposeFile
 )
 
 ## Freshen site stacks
-if [[ "$freshenMode" = true ]]; then
-	FreshenSites
+if [[ "$freshen" = true ]]; then
+	RunStackScripts
 fi
 
 ## Clean up after yourself...
