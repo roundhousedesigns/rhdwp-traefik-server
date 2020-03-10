@@ -224,11 +224,13 @@ RunStackScripts()
 {
 	for d in "${wwwDir}"/*; do
 		_dir="${d##*/}"
-		_branch=$(git rev-parse --abbrev-ref HEAD)
 		_flags=" -q"
+		_branch=
 
 		(
 			cd "$d"
+
+			_branch=$(git rev-parse --abbrev-ref HEAD)
 			
 			if GitRepoNeedsUpdate; then
 				# Update and rebuild
