@@ -12,10 +12,10 @@ git -C "$rootDir" pull -q
 
 for d in "$wwwDir"/*; do
   if [ -d "$d" ]; then
-    docker_compose="${d}"/docker-compose.yml
+    composeFile="${d}"/docker-compose.yml
 
-    docker-compose -f "$docker_compose" --log-level ERROR run --rm wp-cli plugin update --all
-    docker-compose -f "$docker_compose" --log-level ERROR run --rm wp-cli theme update --all
-    docker-compose -f "$docker_compose" --log-level ERROR run --rm wp-cli core update
+    /usr/local/bin/docker-compose -f "$composeFile" --log-level ERROR run --rm wp-cli plugin update --all
+    /usr/local/bin/docker-compose -f "$composeFile" --log-level ERROR run --rm wp-cli theme update --all
+    /usr/local/bin/docker-compose -f "$composeFile" --log-level ERROR run --rm wp-cli core update
   fi
 done
