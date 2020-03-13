@@ -381,6 +381,17 @@ NewSite()
 	)
 }
 
+StartTraefik()
+{
+	(
+		cd "$traefikDir"
+		
+		docker-compose pull -q
+		( docker-compose down -v --remove-orphans || true )
+		docker-compose up -d --remove-orphans
+	)
+}
+
 FinishUp()
 {
 	# Remove temp files
@@ -492,19 +503,19 @@ AskEnv
 WriteEnv
 
 ## System setup
-InstallSystemCron
+if [[ $devMode = true ]]; then
+	# Disable wp_cron customizations on development environments
+	RemoveSystemCron
+else
+	# Set up production wp_cron replacement
+	InstallSystemCron
+fi
 
 ## Enable Development Mode
 GenerateComposeFile
 
 ## Start traefik
-(
-	cd "$traefikDir"
-	
-	docker-compose pull -q
-	( docker-compose down -v --remove-orphans || true )
-	docker-compose up -d --remove-orphans
-)
+StartTraefik
 
 ## Freshen site stacks
 if [[ "$freshen" = true ]]; then
