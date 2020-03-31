@@ -25,6 +25,7 @@
 # 3/6/2020     Added [-c] cron regen flag; Added [-n] newsite flag;
 #                Added cron job to core for auto-scanning for
 #                new/removed sites.
+# 3/31/2020    Individual sites cron handled in per-stack
 #
 ##########
 ## Help ##
@@ -36,17 +37,17 @@ Help()
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
 	echo "Syntax: rhdwpTraefik [-h][-c][-d][-f][-a][-m dirname][-s][-k]"
-	echo "options:"
-	echo "-h            Print this Help."
-	echo "-a            Enable dashboard."
-	echo "-c            Regenerate crontab (only)"
-	echo "-d            Development mode (implies -a)"
-	echo "-f            Freshen site stacks in the www/ directory"
-	echo "-m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
-	echo "-n dirname    Create a new site stack in the www/ directory"
-	echo "-p            Freshen stacks and run patches"
-	echo "-s            LetsEncrypt Staging server"
-	echo "-a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
+	echo 
+	echo "  -h            Print this Help."
+	echo "  -a            Enable dashboard."
+	echo "  -c            Regenerate crontab (only)"
+	echo "  -d            Development mode (implies -a)"
+	echo "  -f            Freshen site stacks in the www/ directory"
+	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
+	echo "  -n dirname    Create a new site stack in the www/ directory"
+	echo "  -p            Freshen stacks and run patches"
+	echo "  -s            LetsEncrypt Staging server"
+	echo "  -a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo
 }
 
@@ -260,66 +261,41 @@ RunStackScripts()
 InstallSystemCron()
 {
 	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
-	local _datetime
 	local _tmpfile
-	local _cmtStart
-	local _cmtEnd
 	local _cronLines
-	local _jobs
-	local _allJobs
 
-	_datetime='*/5 * * * *'
 	_tmpfile=$(mktemp)
-	_cmtStart='# RHDWP Cron #'
-	_cmtEnd='# RHDWP Cron end #'
 	_cronLines=(
 		"# Update WP"
 		"@daily ${utilsDir}/update.sh"
 		"# Start RHDWP server (traefik) at reboot with launch script"
 		"@reboot ${rootDir}/rhdwpTraefik"
-		"# Scan for changes in www/"
-		"@hourly ${rootDir}/rhdwpTraefik -c"
 	)
-	_jobs=
-	_allJobs=
+	_startWww='# RHDWP www\n'
+	_cronJobs=
 
 	# Load the current crontab
 	if [[ -f "/var/spool/cron/crontabs/${USER}" ]]; then
 		crontab -l > "$_tmpfile"
 	fi
 
-	# Generate the individual WP_Cron lines
-	wwwCount=$(find "${wwwDir}" -maxdepth 1 -type d | wc -l)
-	if [[ $wwwCount -gt 1 ]]; then
-		_jobs='# www\n'
-		for d in $wwwDir/*; do
-			_dir="${d##*/}"
-
-			# Add to the jobs list
-			_jobs+="${_datetime} wget -q -O - https://${_dir}/wp-cron.php?doing_wp_cron > /dev/null 2>&1\n"
-		done
-
-		# Remove trailing '\n' lazy bastard
-		_jobs="${_jobs%??}"
-	fi
-
 	# Delete existing entries, or else add entry point comments
-	if grep -q "$_cmtStart" "$_tmpfile"; then
-		sed -i "/$_cmtStart/,/$_cmtEnd/{//!d}" "$_tmpfile"
+	if grep -q "$cronStart" "$_tmpfile"; then
+		sed -i "/$cronStart/,/$cronEnd/{//!d}" "$_tmpfile"
 	else
-		printf "%s\n%s" "$_cmtStart" "$_cmtEnd" >> "$_tmpfile"
+		printf "%s\n%s" "$cronStart" "$cronEnd" >> "$_tmpfile"
 	fi
 
 	# Combine core tasks with generated jobs
 	for line in "${_cronLines[@]}"; do
 		if ! grep -q "$line" "$_tmpfile"; then
-			_allJobs+="$line\n"
+			_cronJobs+="$line\n"
 		fi
 	done
-	_allJobs+="${_jobs}"
+	_cronJobs+="${_startWww}"
 
 	# Insert the new cron jobs
-	sed -i "/$_cmtStart/a $_allJobs" "$_tmpfile"
+	sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
 
 	# Install the new crontab
 	crontab -u "$USER" "$_tmpfile"
@@ -332,18 +308,14 @@ RemoveSystemCron()
 {
 	# Removes the wget commands (wp_cron triggering) from the $USER system crontab
 	local _tmpfile
-	local _cmtStart
-	local _cmtEnd
 	_tmpfile=$(mktemp)
-	_cmtStart='# RHDWP Cron #'
-	_cmtEnd='# RHDWP Cron end #'
 	
 	# Load the current crontab
 	crontab -l > "$_tmpfile"
 	
 	# Find and remove the job(s)
-	if grep -q "$_cmtStart" "$_tmpfile"; then
-		sed -i "/$_cmtStart/,/$_cmtEnd/d" "$_tmpfile"
+	if grep -q "$cronStart" "$_tmpfile"; then
+		sed -i "/$cronStart/,/$cronEnd/d" "$_tmpfile"
 	fi
 
 	# Install the new crontab
@@ -411,6 +383,8 @@ wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary=$(mktemp)
 composeFile="${traefikDir}/docker-compose.yml"
+cronStart='# RHDWP Cron #'
+cronEnd='# RHDWP Cron end #'
 network=web
 devMode=false
 freshen=false
@@ -418,6 +392,7 @@ patchSites=false
 api=
 adminer=
 certStaging=
+
 
 ## Get options
 while getopts "hacdfkm:n:ps" opt; do
