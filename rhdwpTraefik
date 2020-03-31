@@ -25,7 +25,7 @@
 # 3/6/2020     Added [-c] cron regen flag; Added [-n] newsite flag;
 #                Added cron job to core for auto-scanning for
 #                new/removed sites.
-# 3/31/2020    Individual sites cron handled in per-stack
+# 3/31/2020    Individual sites cron handled in per-stack. Removed [-c] and scanning 
 #
 ##########
 ## Help ##
@@ -36,11 +36,10 @@ Help()
 	# Display Help
 	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
 	echo
-	echo "Syntax: rhdwpTraefik [-h][-c][-d][-f][-a][-m dirname][-s][-k]"
+	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
 	echo 
 	echo "  -h            Print this Help."
 	echo "  -a            Enable dashboard."
-	echo "  -c            Regenerate crontab (only)"
 	echo "  -d            Development mode (implies -a)"
 	echo "  -f            Freshen site stacks in the www/ directory"
 	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
@@ -263,6 +262,7 @@ InstallSystemCron()
 	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
 	local _tmpfile
 	local _cronLines
+	local _cronJobs
 
 	_tmpfile=$(mktemp)
 	_cronLines=(
@@ -270,35 +270,33 @@ InstallSystemCron()
 		"@daily ${utilsDir}/update.sh"
 		"# Start RHDWP server (traefik) at reboot with launch script"
 		"@reboot ${rootDir}/rhdwpTraefik"
+		"# RHDWP www\n"
 	)
-	_startWww='# RHDWP www\n'
-	_cronJobs=
 
 	# Load the current crontab
 	if [[ -f "/var/spool/cron/crontabs/${USER}" ]]; then
 		crontab -l > "$_tmpfile"
 	fi
+	
+	# Check if RHDWP cron is already installed
+	if ! grep "$cronStart" "$_tmpfile"; then
 
-	# Delete existing entries, or else add entry point comments
-	if grep -q "$cronStart" "$_tmpfile"; then
-		sed -i "/$cronStart/,/$cronEnd/{//!d}" "$_tmpfile"
-	else
+		# Add entry point comments
 		printf "%s\n%s" "$cronStart" "$cronEnd" >> "$_tmpfile"
+
+		# Combine core tasks with generated jobs
+		for line in "${_cronLines[@]}"; do
+			if ! grep -q "$line" "$_tmpfile"; then
+				_cronJobs+="$line\n"
+			fi
+		done
+
+		# Insert the new cron jobs
+		sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
+
+		# Install the new crontab
+		crontab -u "$USER" "$_tmpfile"
 	fi
-
-	# Combine core tasks with generated jobs
-	for line in "${_cronLines[@]}"; do
-		if ! grep -q "$line" "$_tmpfile"; then
-			_cronJobs+="$line\n"
-		fi
-	done
-	_cronJobs+="${_startWww}"
-
-	# Insert the new cron jobs
-	sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
-
-	# Install the new crontab
-	crontab -u "$USER" "$_tmpfile"
 
 	# Clean up
 	rm "$_tmpfile"
@@ -404,12 +402,6 @@ while getopts "hacdfkm:n:ps" opt; do
 	a) # API/Dashboard enabled
 		echo "Dashboard enabled."
 		api=true
-		;;
-	c) # Regenerate cron jobs, and exit
-		echo "Regenerating cron jobs..."
-		InstallSystemCron
-		echo "Done."
-		exit 0
 		;;
 	d) # Development mode
 		echo "Development mode enabled."
