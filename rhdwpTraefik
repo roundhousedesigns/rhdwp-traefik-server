@@ -4,28 +4,7 @@
 ## rhdwpTraefik ##
 ##################
 #
-# Sets up and (re)starts the main RHDWP Traefik router stack. 
-#	Also used to rebuild config files.
-#
-####################
-## Change History ##
-####################
-#
-# 12/24/2019   Finally added this changelog.
-#                Add documentation and restructure for long-term
-#                happiness, and a Help function.
-# 1/1/2020     Sanity checks.
-# 1/3/2020     Added -d for dev mode; Removed license.
-# 1/7/2020     Added -f for freshen mode.
-# 1/8/2020     LegacyChecks for old version cleanups.
-# 1/17/2020    API/Adminer/Staging flags.
-# 1/21/2020    Replace WP's native cron with a system cronjob.
-# 1/24/2020    Name change
-# 1/30/2020    Added core cron jobs
-# 3/6/2020     Added [-c] cron regen flag; Added [-n] newsite flag;
-#                Added cron job to core for auto-scanning for
-#                new/removed sites.
-# 3/31/2020    Individual sites cron handled in per-stack. Removed [-c] and scanning 
+# Manages and configures the rhdwp-docker site stack.
 #
 ##########
 ## Help ##
@@ -410,7 +389,7 @@ while getopts "hacdfkm:n:ps" opt; do
 		;;
 	m) # Enable adminer for a project
 		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -m option requires an argument (docker network prefix)."
+			echo "Error: The -m option requires a docker network prefix (example: abccom)."
 			exit 1
 		else
 			adminer=true
