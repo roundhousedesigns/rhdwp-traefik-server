@@ -321,10 +321,10 @@ NewSite()
 		echo "No directory name supplied."
 		exit 1
 	fi
-	
+
 	# Get in there and start
 	(
-		git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
+		cp -r "$stackDir" "$_sitePath"
 		cd "$_sitePath" || exit
 		./rhdwpStack
 	)
@@ -334,7 +334,7 @@ StartTraefik()
 {
 	(
 		cd "$traefikDir"
-		
+
 		docker-compose pull -q
 		( docker-compose down -v --remove-orphans || true )
 		docker-compose up -d --remove-orphans
@@ -357,6 +357,7 @@ rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 utilsDir="${rootDir}/utils"
 wwwDir="${rootDir}/www"
+stackDir="${rootDir}/stack"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary=$(mktemp)
 composeFile="${traefikDir}/docker-compose.yml"
