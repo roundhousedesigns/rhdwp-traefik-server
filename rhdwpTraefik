@@ -315,6 +315,7 @@ NewSite()
 	# $1: the stack directory name (domain)
 	_dir="$1"
 	_sitePath="${wwwDir}/${_dir}"
+	_stack="${rootDir}/stack" # note trailing slash
 
 	# Sanity check
 	if [ -z "$_dir" ]; then
@@ -324,7 +325,7 @@ NewSite()
 
 	# Get in there and start
 	(
-		cp -r "$stackDir" "$_sitePath"
+		cp -r "$_stack" "$_sitePath"
 		cd "$_sitePath" || exit
 		./rhdwpStack
 	)
@@ -357,7 +358,6 @@ rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 utilsDir="${rootDir}/utils"
 wwwDir="${rootDir}/www"
-stackDir="${rootDir}/stack"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 composeTemporary=$(mktemp)
 composeFile="${traefikDir}/docker-compose.yml"
