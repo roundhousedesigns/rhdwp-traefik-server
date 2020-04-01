@@ -211,7 +211,7 @@ RunStackScripts()
 			cd "$d"
 
 			_branch=$(git rev-parse --abbrev-ref HEAD)
-			
+
 			if GitRepoNeedsUpdate; then
 				# Update and rebuild
 				echo "UPDATE $_dir"
@@ -399,7 +399,8 @@ while getopts "hacdfkm:n:ps" opt; do
 		;;
 	f) # Freshen sites (www/ site stacks)
 		echo "Freshen sites"
-		freshen=true
+		RunStackScripts
+		exit
 		;;
 	k) # Kill the server and cleanup
 		echo "Stopping main server and cleaning up..."
@@ -462,11 +463,6 @@ GenerateComposeFile
 
 ## Start traefik
 StartTraefik
-
-## Freshen site stacks
-if [[ "$freshen" = true ]]; then
-	RunStackScripts
-fi
 
 ## Clean up after yourself...
 FinishUp
