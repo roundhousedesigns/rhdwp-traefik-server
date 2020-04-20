@@ -316,6 +316,13 @@ NewSite()
 		exit 1
 	fi
 	
+	# Update docker images
+	for _sub in {1..4}; do
+		local _ver="7.${_sub}"
+
+		docker pull "wordpress:php${_ver}"
+	done
+
 	# Get in there and start
 	(
 		git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
