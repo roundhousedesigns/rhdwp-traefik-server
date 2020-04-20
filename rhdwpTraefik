@@ -364,7 +364,6 @@ cronStart='# RHDWP Cron #'
 cronEnd='# RHDWP Cron end #'
 network=web
 devMode=false
-freshen=false
 patchSites=false
 api=
 adminer=
@@ -419,7 +418,6 @@ while getopts "hacdfkm:n:ps" opt; do
 		fi
 		;;
 	p) # Update and run patches
-		freshen=true
 		patchSites=true
 		;;
 	s) # LetsEncrypt staging mode
