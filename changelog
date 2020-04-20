@@ -14,4 +14,4 @@ rhdwp-traefik-server
 1/30/2020			Added core cron jobs
 3/6/2020			Added [-c] cron regen flag; Added [-n] newsite flag; Added cron job to core for auto-scanning for new/removed sites.
 3/31/2020			Individual sites cron handled in per-stack. Removed [-c] and scanning. Separated out this changelog.
-4/20/2020			Patches now using Ansible, so gone from the script. Woot.
+4/20/2020			Patches now using Ansible, so gone from the script (wooooot); Added buffering/large upload capability to master.
