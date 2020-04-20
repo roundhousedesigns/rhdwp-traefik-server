@@ -19,12 +19,13 @@ Help()
 	echo 
 	echo "  -h            Print this Help."
 	echo "  -a            Enable dashboard."
+	echo "  -b            Buffering expansion (large uploads)"
 	echo "  -d            Development mode (implies -a)"
 	echo "  -f            Freshen site stacks in the www/ directory"
+	echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
 	echo "  -n dirname    Create a new site stack in the www/ directory"
 	echo "  -s            LetsEncrypt Staging server"
-	echo "  -a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo
 }
 
@@ -139,8 +140,16 @@ GenerateComposeFile()
 	# Create/edit docker-compose.yml
 	cp "$composeTemplate" "$composeTemporary"
 
+	# Check and uncomment the 'labels:' heading, if necessary
+	if [[ "$api" = true ]] || [[ "$buffering" = true ]];then
+		sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$composeTemporary"
+	fi
+
+	if [[ "$buffering" = true ]]; then
+		sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$composeTemporary"
+	fi
+
 	if [[ "$api" = true ]]; then
-		# Uncomment all commented lines to enable
 		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
 	fi
 
@@ -367,11 +376,11 @@ network=web
 devMode=false
 api=
 adminer=
-certStaging=
-
+certStaging=false
+buffering=false
 
 ## Get options
-while getopts "hacdfkm:n:ps" opt; do
+while getopts "habcdfkm:n:ps" opt; do
 	case "$opt" in
 	h) # display Help
 		Help
@@ -381,20 +390,14 @@ while getopts "hacdfkm:n:ps" opt; do
 		echo "Dashboard enabled."
 		api=true
 		;;
+	b) # Large upload/buffer support
+		echo "Large upload/buffer support enabled."
+		buffering=true
+		;;
 	d) # Development mode
 		echo "Development mode enabled."
 		devMode=true
 		api=true
-		;;
-	m) # Enable adminer for a project
-		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -m option requires a docker network prefix (example: abccom)."
-			exit 1
-		else
-			adminer=true
-			adminerVhost=${OPTARG}
-			echo "Adminer enabled for ${adminerVhost}"
-		fi
 		;;
 	f) # Freshen sites (www/ site stacks)
 		echo "Freshen sites"
@@ -406,6 +409,16 @@ while getopts "hacdfkm:n:ps" opt; do
 		StopServer
 		echo "Done."
 		exit 0
+		;;
+	m) # Enable adminer for a project
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -m option requires a docker network prefix (example: abccom)."
+			exit 1
+		else
+			adminer=true
+			adminerVhost=${OPTARG}
+			echo "Adminer enabled for ${adminerVhost}"
+		fi
 		;;
 	n) # Start a new site, and exit
 		if [[ -z "$OPTARG" ]]; then

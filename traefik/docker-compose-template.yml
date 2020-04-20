@@ -35,8 +35,16 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
-    ## RHDWP: API ##
+    ## RHDWP: useLabels ##
     # labels:
+    ## RHDWP: useLabels end ##
+    ## RHDWP: Buffering ##
+    #   - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
+    #   - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
+    #   - "traefik.https.middlewares.limit.buffering.maxResponseBodyBytes=4000000000"
+    #   - "traefik.https.middlewares.limit.buffering.retryExpression=IsNetworkError() && Attempts() < 2"
+    ## RHDWP: Buffering end ##
+    ## RHDWP: API ##
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.api.entrypoints=http"
     #   - "traefik.http.routers.api.rule=Host(`monitor.${FQDN}`)"
