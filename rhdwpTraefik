@@ -323,7 +323,7 @@ NewSite()
 		docker pull "wordpress:php${_ver}"
 	done
 
-	# Get in there and start
+	# Spin up the stack
 	(
 		git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
 		cd "$_sitePath" || exit
