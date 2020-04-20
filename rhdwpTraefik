@@ -19,13 +19,13 @@ Help()
 	echo 
 	echo "  -h            Print this Help."
 	echo "  -a            Enable dashboard."
+	echo "  -b            Buffering expansion (large uploads)"
 	echo "  -d            Development mode (implies -a)"
 	echo "  -f            Freshen site stacks in the www/ directory"
+	echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
 	echo "  -n dirname    Create a new site stack in the www/ directory"
-	echo "  -p            Freshen stacks and run patches"
 	echo "  -s            LetsEncrypt Staging server"
-	echo "  -a            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo
 }
 
@@ -140,8 +140,16 @@ GenerateComposeFile()
 	# Create/edit docker-compose.yml
 	cp "$composeTemplate" "$composeTemporary"
 
+	# Check and uncomment the 'labels:' heading, if necessary
+	if [[ "$api" = true ]] || [[ "$buffering" = true ]];then
+		sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$composeTemporary"
+	fi
+
+	if [[ "$buffering" = true ]]; then
+		sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$composeTemporary"
+	fi
+
 	if [[ "$api" = true ]]; then
-		# Uncomment all commented lines to enable
 		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
 	fi
 
@@ -222,11 +230,6 @@ RunStackScripts()
 				fi
 
 				git pull -q
-			fi
-
-			# Add the patch flag
-			if [[ "$patchSites" == true ]]; then
-				_flags+=" -p"
 			fi
 
 			# Run
@@ -322,7 +325,14 @@ NewSite()
 		exit 1
 	fi
 	
-	# Get in there and start
+	# Update docker images
+	for _sub in {1..4}; do
+		local _ver="7.${_sub}"
+
+		docker pull "wordpress:php${_ver}"
+	done
+
+	# Spin up the stack
 	(
 		git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
 		cd "$_sitePath" || exit
@@ -364,15 +374,13 @@ cronStart='# RHDWP Cron #'
 cronEnd='# RHDWP Cron end #'
 network=web
 devMode=false
-freshen=false
-patchSites=false
 api=
 adminer=
-certStaging=
-
+certStaging=false
+buffering=false
 
 ## Get options
-while getopts "hacdfkm:n:ps" opt; do
+while getopts "habcdfkm:n:ps" opt; do
 	case "$opt" in
 	h) # display Help
 		Help
@@ -382,20 +390,14 @@ while getopts "hacdfkm:n:ps" opt; do
 		echo "Dashboard enabled."
 		api=true
 		;;
+	b) # Large upload/buffer support
+		echo "Large upload/buffer support enabled."
+		buffering=true
+		;;
 	d) # Development mode
 		echo "Development mode enabled."
 		devMode=true
 		api=true
-		;;
-	m) # Enable adminer for a project
-		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -m option requires a docker network prefix (example: abccom)."
-			exit 1
-		else
-			adminer=true
-			adminerVhost=${OPTARG}
-			echo "Adminer enabled for ${adminerVhost}"
-		fi
 		;;
 	f) # Freshen sites (www/ site stacks)
 		echo "Freshen sites"
@@ -408,6 +410,16 @@ while getopts "hacdfkm:n:ps" opt; do
 		echo "Done."
 		exit 0
 		;;
+	m) # Enable adminer for a project
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -m option requires a docker network prefix (example: abccom)."
+			exit 1
+		else
+			adminer=true
+			adminerVhost=${OPTARG}
+			echo "Adminer enabled for ${adminerVhost}"
+		fi
+		;;
 	n) # Start a new site, and exit
 		if [[ -z "$OPTARG" ]]; then
 			echo "Error: The -n option requires an argument (directory name)."
@@ -417,10 +429,6 @@ while getopts "hacdfkm:n:ps" opt; do
 			NewSite "${OPTARG}"
 			exit 0
 		fi
-		;;
-	p) # Update and run patches
-		freshen=true
-		patchSites=true
 		;;
 	s) # LetsEncrypt staging mode
 		echo "Using LetsEncrypt staging server"
