@@ -7,121 +7,115 @@
 # Manages and configures the rhdwp-docker site stack.
 #
 ##########
-## Help ##
+## help ##
 ##########
 
-Help()
-{
-	# Display Help
-	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
-	echo
-	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
-	echo 
-	echo "  -h            Print this Help."
-	echo "  -a            Enable dashboard."
-	echo "  -b            Buffering expansion (large uploads)"
-	echo "  -d            Development mode (implies -a)"
-	echo "  -f            Freshen site stacks in the www/ directory"
-	echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
-	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
-	echo "  -n dirname    Create a new site stack in the www/ directory"
-	echo "  -s            LetsEncrypt Staging server"
-	echo
+help() {
+  ## Display help
+  echo "Generates a docker-compose.yml configuration for the RHDWP stack."
+  echo
+  echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
+  echo
+  echo "  -h            Help and usage."
+  echo "  -a            Enable dashboard."
+  echo "  -b            Buffering expansion (large uploads)"
+  echo "  -d            Development mode (implies -a)"
+  echo "  -f            Freshen site stacks in the www/ directory"
+  echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
+  echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
+  echo "  -n dirname    Create a new site stack in the www/ directory"
+  echo "  -s            LetsEncrypt Staging server"
+  echo
 }
 
 ###############
 ## Functions ##
 ###############
 
-SanityChecks()
-{
-	# Check requried tools
-	
-	## Sudo
-	echo "Checking sudo freshness..."
-	sudo echo "Done."
-	
-	deps=( docker docker-compose )
-	for i in "${deps[@]}"; do
-	if ! hash "$i" 2>/dev/null; then
-		printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
-		exit 1
-	fi
-	done
+sanityChecks() {
+  ## Check requried tools
+
+  ## Sudo
+  echo "Checking sudo freshness..."
+  sudo echo "Done."
+
+  deps=(docker docker-compose)
+  for i in "${deps[@]}"; do
+    if ! hash "$i" 2>/dev/null; then
+      printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
+      exit 1
+    fi
+  done
 }
 
-LegacyChecks()
-{
-	# Housekeeping section
-	# Place one-off or immediate-use actions here.
-	local _oldCliDir
-	local _newCliDir
-	_oldCliDir="${rootDir}/wp-cli"
-	_newCliDir="${rootDir}/.wp-cli"
+legacyChecks() {
+  ## Housekeeping section
+  # Place one-off or immediate-use actions here.
+  local _oldCliDir
+  local _newCliDir
+  _oldCliDir="${rootDir}/wp-cli"
+  _newCliDir="${rootDir}/.wp-cli"
 
-	# Move (or remove) ./wp-cli to ./.wp-cli
-	if [[ -d "$_oldCliDir" ]]; then
-		if [[ -d "$_newCliDir" ]]; then
-			sudo rm -rf "$_oldCliDir"
-		else
-			sudo mv "$_oldCliDir" "$_newCliDir"
-		fi
-	fi
+  # Move (or remove) ./wp-cli to ./.wp-cli
+  if [[ -d "$_oldCliDir" ]]; then
+    if [[ -d "$_newCliDir" ]]; then
+      sudo rm -rf "$_oldCliDir"
+    else
+      sudo mv "$_oldCliDir" "$_newCliDir"
+    fi
+  fi
 }
 
-GitRepoNeedsUpdate()
-{
-	git fetch
-	_headHash=$(git rev-parse HEAD)
-	#shellcheck disable=SC1083
-	_upstreamHash=$(git rev-parse master@{upstream})
+gitRepoNeedsUpdate() {
+  git fetch
+  _headHash=$(git rev-parse HEAD)
+  #shellcheck disable=SC1083
+  _upstreamHash=$(git rev-parse master@{upstream})
 
-	# Return the result
-	[[ "$_headHash" != "$_upstreamHash" ]]
+  # Return the result
+  [[ "$_headHash" != "$_upstreamHash" ]]
 }
 
-AskEnv()
-{
-	# Verify .env values
+askEnv() {
+  ## Verify .env values
 
-	# CloudFlare account email
-	while [[ -z "$CF_API_EMAIL" ]]; do
-		read -r -p "CloudFlare account email: " CF_API_EMAIL
-	done
+  # CloudFlare account email
+  while [[ -z "$CF_API_EMAIL" ]]; do
+    read -r -p "CloudFlare account email: " CF_API_EMAIL
+  done
 
-	# CloudFlare API Key
-	while [[ -z "$CF_API_KEY" ]]; do
-		read -r -p "CloudFlare API Key: " CF_API_KEY
-	done
+  # CloudFlare API Key
+  while [[ -z "$CF_API_KEY" ]]; do
+    read -r -p "CloudFlare API Key: " CF_API_KEY
+  done
 
-	# Mailgun API Key
-	while [[ -z "$MG_API_KEY" ]]; do
-		read -r -p "MailGun API Key: " MG_API_KEY
-	done
+  # Mailgun API Key
+  while [[ -z "$MG_API_KEY" ]]; do
+    read -r -p "MailGun API Key: " MG_API_KEY
+  done
 
-	if [[ "$devMode" = true ]]; then
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_LOGIN" ]]; do
-			read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
-		done
+  if [[ "$devMode" = true ]]; then
+    # SMTP login for dev mode
+    while [[ -z "$DEV_SMTP_LOGIN" ]]; do
+      read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
+    done
 
-		# Mailgun API Key
-		while [[ -z "$DEV_SMTP_PASS" ]]; do
-			read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
-		done
+    # Mailgun API Key
+    while [[ -z "$DEV_SMTP_PASS" ]]; do
+      read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
+    done
 
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_FROM" ]]; do
-			read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
-		done
-	fi
+    # SMTP login for dev mode
+    while [[ -z "$DEV_SMTP_FROM" ]]; do
+      read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
+    done
+  fi
 }
 
-WriteEnv()
-{
-	# Write to .env and lock it down
+writeEnv() {
+  ## Write to .env and lock it down
 
-	cat <<-EOT > "$envFile"
+  cat <<-EOT >"$envFile"
 	FQDN=$(hostname -f)
 	CF_API_EMAIL=$CF_API_EMAIL
 	CF_API_KEY=$CF_API_KEY
@@ -131,232 +125,225 @@ WriteEnv()
 	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
-	sudo chown "$USER" "$envFile"
-	sudo chmod 600 "$envFile"
+  sudo chown "$USER" "$envFile"
+  sudo chmod 600 "$envFile"
 }
 
-GenerateComposeFile()
-{
-	# Create/edit docker-compose.yml
-	cp "$composeTemplate" "$composeTemporary"
+generateComposeFile() {
+  ## Create/edit docker-compose.yml
+  cp "$composeTemplate" "$composeTemporary"
 
-	# Check and uncomment the 'labels:' heading, if necessary
-	if [[ "$api" = true ]] || [[ "$buffering" = true ]];then
-		sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$composeTemporary"
-	fi
+  # Enable 'labels:' for use in docker-compose
+  if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
+    sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$composeTemporary"
+  fi
 
-	if [[ "$buffering" = true ]]; then
-		sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$composeTemporary"
-	fi
+  # Enable buffer expansion (large uploads)
+  if [[ "$buffering" = true ]]; then
+    sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$composeTemporary"
+  fi
 
-	if [[ "$api" = true ]]; then
-		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
-	fi
+  # Enable the Dashboard
+  if [[ "$api" = true ]]; then
+    sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
+  fi
 
-	if [[ "$adminer" = true ]] && [[ ! -z "$adminerVhost" ]]; then
-		# Enable adminer for specified project (using the stack's directory)
-		# e.g. use `abccom` for www/abc.com
-		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_]' | tr '[:upper:]' '[:lower:]')
-		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
-		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$composeTemporary"
-	fi
+  # Enable adminer for specified project (using the stack's directory)
+  # e.g. use `abccom` for www/abc.com
+  if [[ "$adminer" = true ]] && [[ ! -z "$adminerVhost" ]]; then
+    adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_]' | tr '[:upper:]' '[:lower:]')
+    sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
+    sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$composeTemporary"
+  fi
 
-	if [[ "$certStaging" = true ]]; then
-		sed -i '/## RHDWP: LetsEncrypt Staging ##/,/## RHDWP: LetsEncrypt Staging end ##/s/[^#]# / /g' "$composeTemporary"
-	fi
+  if [[ "$certStaging" = true ]]; then
+    sed -i '/## RHDWP: LetsEncrypt Staging ##/,/## RHDWP: LetsEncrypt Staging end ##/s/[^#]# / /g' "$composeTemporary"
+  fi
 
-	mv "$composeTemporary" "$composeFile"
+  mv "$composeTemporary" "$composeFile"
 }
 
-SetupFiles()
-{
-	# Generate storage and log files, if necessary
+setupFiles() {
+  ## Generate storage and log files, if necessary
 
-	## Logs
-	logDir="${traefikDir}/log"
-	if [[ ! -d "$logDir" ]]; then
-		mkdir "$logDir"
-	fi
+  ## Logs
+  logDir="${traefikDir}/log"
+  if [[ ! -d "$logDir" ]]; then
+    mkdir "$logDir"
+  fi
 
-	log="${logDir}/error.log"
-	if [[ ! -f "$log" ]]; then
-		touch "$log"
-	fi
+  log="${logDir}/error.log"
+  if [[ ! -f "$log" ]]; then
+    touch "$log"
+  fi
 
-	## LetsEncrypt storage
-	acme="${traefikDir}/acme.json"
-	if [[ ! -f "$acme" ]]; then
-		sudo touch "$acme"
-		sudo chown www-data:www-data "$acme"
-		sudo chmod 600 "$acme"
-	fi
+  ## LetsEncrypt storage
+  acme="${traefikDir}/acme.json"
+  if [[ ! -f "$acme" ]]; then
+    sudo touch "$acme"
+    sudo chown www-data:www-data "$acme"
+    sudo chmod 600 "$acme"
+  fi
 
-	## Environment variables file
-	envFile="${traefikDir}/.env"
-	if [[ -r "$envFile" ]]; then
-		# shellcheck disable=SC1091
-		# shellcheck source=/srv/rhdwp/traefik/.env
-		. "$envFile"
-	fi
+  ## Environment variables file
+  envFile="${traefikDir}/.env"
+  if [[ -r "$envFile" ]]; then
+    # shellcheck disable=SC1091
+    # shellcheck source=/srv/rhdwp/traefik/.env
+    . "$envFile"
+  fi
 
-	## Create sites directory
-	if [[ ! -d "${wwwDir}" ]]; then
-		mkdir "${rootDir}/www"
-	fi
+  ## Create sites directory
+  if [[ ! -d "${wwwDir}" ]]; then
+    mkdir "${rootDir}/www"
+  fi
 
-	## wp-cli permissions
-	sudo chown -R www-data:www-data "${rootDir}/.wp-cli"
+  ## wp-cli permissions
+  sudo chown -R www-data:www-data "${rootDir}/.wp-cli"
 }
 
-RunStackScripts()
-{
-	for d in "${wwwDir}"/*; do
-		_dir="${d##*/}"
-		_flags=" -q"
-		_branch=
+runStackScripts() {
+  for d in "${wwwDir}"/*; do
+    _dir="${d##*/}"
+    _flags=" -q"
+    _branch=
 
-		(
-			cd "$d"
+    (
+      cd "$d"
 
-			_branch=$(git rev-parse --abbrev-ref HEAD)
+      _branch=$(git rev-parse --abbrev-ref HEAD)
 
-			if GitRepoNeedsUpdate; then
-				# Update and rebuild
-				echo "UPDATE $_dir"
+      if gitRepoNeedsUpdate; then
+        # Update and rebuild
+        echo "UPDATE $_dir"
 
-				# Check for master branch
-				if [[ "$_branch" != "master" ]]; then
-					git checkout master
-				fi
+        # Check for master branch
+        if [[ "$_branch" != "master" ]]; then
+          git checkout master
+        fi
 
-				git pull -q
-			fi
+        git pull -q
+      fi
 
-			# Run
-			# shellcheck disable=SC2086
-			sudo -u "$USER" ./rhdwpStack $_flags
-		)
-	done
+      # Run
+      # shellcheck disable=SC2086
+      sudo -u "$USER" ./rhdwpStack $_flags
+    )
+  done
 }
 
-InstallSystemCron()
-{
-	# Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
-	local _tmpfile
-	local _cronLines
-	local _cronJobs
+installSystemCron() {
+  ## Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
+  local _tmpfile
+  local _cronLines
+  local _cronJobs
 
-	_tmpfile=$(mktemp)
-	_cronLines=(
-		"# Update WP"
-		"@daily ${utilsDir}/update.sh"
-		"# Start RHDWP server (traefik) at reboot with launch script"
-		"@reboot ${rootDir}/rhdwpTraefik"
-		"# RHDWP www\n"
-	)
+  _tmpfile=$(mktemp)
+  _cronLines=(
+    "# Update WP"
+    "@daily ${utilsDir}/update.sh"
+    "# Start RHDWP server (traefik) at reboot with launch script"
+    "@reboot ${rootDir}/rhdwpTraefik"
+    "# RHDWP www\n"
+  )
 
-	# Load the current crontab
-	if [[ -f "/var/spool/cron/crontabs/${USER}" ]]; then
-		crontab -l > "$_tmpfile"
-	fi
-	
-	# Check if RHDWP cron is already installed
-	if ! grep "$cronStart" "$_tmpfile"; then
+  # Load the current crontab
+  if [[ -f "/var/spool/cron/crontabs/${USER}" ]]; then
+    crontab -l >"$_tmpfile"
+  fi
 
-		# Add entry point comments
-		printf "%s\n%s" "$cronStart" "$cronEnd" >> "$_tmpfile"
+  # Check if RHDWP cron is already installed
+  if ! grep "$cronStart" "$_tmpfile"; then
 
-		# Combine core tasks with generated jobs
-		for line in "${_cronLines[@]}"; do
-			if ! grep -q "$line" "$_tmpfile"; then
-				_cronJobs+="$line\n"
-			fi
-		done
+    # Add entry point comments
+    printf "%s\n%s" "$cronStart" "$cronEnd" >>"$_tmpfile"
 
-		# Insert the new cron jobs
-		sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
+    # Combine core tasks with generated jobs
+    for line in "${_cronLines[@]}"; do
+      if ! grep -q "$line" "$_tmpfile"; then
+        _cronJobs+="$line\n"
+      fi
+    done
 
-		# Install the new crontab
-		crontab -u "$USER" "$_tmpfile"
-	fi
+    # Insert the new cron jobs
+    sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
 
-	# Clean up
-	rm "$_tmpfile"
+    # Install the new crontab
+    crontab -u "$USER" "$_tmpfile"
+  fi
+
+  # Clean up
+  rm "$_tmpfile"
 }
 
-RemoveSystemCron()
-{
-	# Removes the wget commands (wp_cron triggering) from the $USER system crontab
-	local _tmpfile
-	_tmpfile=$(mktemp)
-	
-	# Load the current crontab
-	crontab -l > "$_tmpfile"
-	
-	# Find and remove the job(s)
-	if grep -q "$cronStart" "$_tmpfile"; then
-		sed -i "/$cronStart/,/$cronEnd/d" "$_tmpfile"
-	fi
+removeSystemCron() {
+  ## Removes the wget commands (wp_cron triggering) from the $USER system crontab
+  local _tmpfile
+  _tmpfile=$(mktemp)
 
-	# Install the new crontab
-	crontab -u "$USER" "$_tmpfile"
+  # Load the current crontab
+  crontab -l >"$_tmpfile"
 
-	# Clean up
-	rm "$_tmpfile"
+  # Find and remove the job(s)
+  if grep -q "$cronStart" "$_tmpfile"; then
+    sed -i "/$cronStart/,/$cronEnd/d" "$_tmpfile"
+  fi
+
+  # Install the new crontab
+  crontab -u "$USER" "$_tmpfile"
+
+  # Clean up
+  rm "$_tmpfile"
 }
 
-StopServer()
-{
-	# Stop the main traefik stack and clean up
-	( cd "$traefikDir" && docker-compose down --remove-orphans -v )
-	RemoveSystemCron
+StopServer() {
+  ## Stop the main traefik stack and clean up
+  (cd "$traefikDir" && docker-compose down --remove-orphans -v)
+  removeSystemCron
 }
 
-NewSite()
-{
-	# Create a new site stack in www/
-	# $1: the stack directory name (domain)
-	_dir="$1"
-	_sitePath="${wwwDir}/${_dir}"
+newSite() {
+  ## Create a new site stack in www/
+  # $1: the stack directory name (domain)
+  _dir="$1"
+  _sitePath="${wwwDir}/${_dir}"
 
-	# Sanity check
-	if [ -z "$_dir" ]; then
-		echo "No directory name supplied."
-		exit 1
-	fi
-	
-	# Update docker images
-	for _sub in {1..4}; do
-		local _ver="7.${_sub}"
+  # Sanity check
+  if [ -z "$_dir" ]; then
+    echo "No directory name supplied."
+    exit 1
+  fi
 
-		docker pull "wordpress:php${_ver}"
-	done
+  # Update docker images
+  for _sub in {1..4}; do
+    local _ver="7.${_sub}"
 
-	# Spin up the stack
-	(
-		git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
-		cd "$_sitePath" || exit
-		./rhdwpStack
-	)
+    docker pull "wordpress:php${_ver}"
+  done
+
+  # Spin up the stack
+  (
+    git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
+    cd "$_sitePath" || exit
+    ./rhdwpStack
+  )
 }
 
-StartTraefik()
-{
-	(
-		cd "$traefikDir"
-		
-		docker-compose pull -q
-		( docker-compose down -v --remove-orphans || true )
-		docker-compose up -d --remove-orphans
-	)
+startTraefik() {
+  (
+    cd "$traefikDir"
+
+    docker-compose pull -q
+    (docker-compose down -v --remove-orphans || true)
+    docker-compose up -d --remove-orphans
+  )
 }
 
-FinishUp()
-{
-	# Remove temp files
-	if [[ -f "$composeTemporary" ]]; then
-		rm "$composeTemporary"
-	fi
+finishUp() {
+  ## Remove temp files
+  if [[ -f "$composeTemporary" ]]; then
+    rm "$composeTemporary"
+  fi
 }
 
 #########
@@ -381,96 +368,96 @@ buffering=false
 
 ## Get options
 while getopts "habcdfkm:n:ps" opt; do
-	case "$opt" in
-	h) # display Help
-		Help
-		exit 0
-		;;
-	a) # API/Dashboard enabled
-		echo "Dashboard enabled."
-		api=true
-		;;
-	b) # Large upload/buffer support
-		echo "Large upload/buffer support enabled."
-		buffering=true
-		;;
-	d) # Development mode
-		echo "Development mode enabled."
-		devMode=true
-		api=true
-		;;
-	f) # Freshen sites (www/ site stacks)
-		echo "Freshen sites"
-		RunStackScripts
-		exit
-		;;
-	k) # Kill the server and cleanup
-		echo "Stopping main server and cleaning up..."
-		StopServer
-		echo "Done."
-		exit 0
-		;;
-	m) # Enable adminer for a project
-		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -m option requires a docker network prefix (example: abccom)."
-			exit 1
-		else
-			adminer=true
-			adminerVhost=${OPTARG}
-			echo "Adminer enabled for ${adminerVhost}"
-		fi
-		;;
-	n) # Start a new site, and exit
-		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -n option requires an argument (directory name)."
-			exit 1
-		else
-			echo "Creating www/${OPTARG}"
-			NewSite "${OPTARG}"
-			exit 0
-		fi
-		;;
-	s) # LetsEncrypt staging mode
-		echo "Using LetsEncrypt staging server"
-		certStaging=true
-		;;
-	\?) # invalid option
-		echo "Invalid option: -$OPTARG" >&2
-		exit 1
-		;;
-	esac
+  case "$opt" in
+  h) # display help
+    help
+    exit 0
+    ;;
+  a) # API/Dashboard enabled
+    echo "Dashboard enabled."
+    api=true
+    ;;
+  b) # Large upload/buffer support
+    echo "Large upload/buffer support enabled."
+    buffering=true
+    ;;
+  d) # Development mode
+    echo "Development mode enabled."
+    devMode=true
+    api=true
+    ;;
+  f) # Freshen sites (www/ site stacks)
+    echo "Freshen sites"
+    runStackScripts
+    exit
+    ;;
+  k) # Kill the server and cleanup
+    echo "Stopping main server and cleaning up..."
+    StopServer
+    echo "Done."
+    exit 0
+    ;;
+  m) # Enable adminer for a project
+    if [[ -z "$OPTARG" ]]; then
+      echo "Error: The -m option requires a docker network prefix (example: abccom)."
+      exit 1
+    else
+      adminer=true
+      adminerVhost=${OPTARG}
+      echo "Adminer enabled for ${adminerVhost}"
+    fi
+    ;;
+  n) # Start a new site, and exit
+    if [[ -z "$OPTARG" ]]; then
+      echo "Error: The -n option requires an argument (directory name)."
+      exit 1
+    else
+      echo "Creating www/${OPTARG}"
+      newSite "${OPTARG}"
+      exit 0
+    fi
+    ;;
+  s) # LetsEncrypt staging mode
+    echo "Using LetsEncrypt staging server"
+    certStaging=true
+    ;;
+  \?) # invalid option
+    echo "Invalid option: -$OPTARG" >&2
+    exit 1
+    ;;
+  esac
 done
 
 ## Before we begin...
-SanityChecks
-LegacyChecks
+sanityChecks
+legacyChecks
 
 ## Generate LetsEncrypt storage and log files
-SetupFiles
+setupFiles
 
 ## Create web network
 if ! docker network ls | grep -q "$network"; then
-	docker network create "$network" || true
+  docker network create "$network" || true
 fi
 
 ## Retrieve or prompt for environment variables, and export to .env
-AskEnv
-WriteEnv
+askEnv
+writeEnv
 
 ## System setup
 if [[ $devMode = true ]]; then
-	# Disable wp_cron customizations on development environments
-	RemoveSystemCron
+  # Disable wp_cron customizations on development environments
+  removeSystemCron
 else
-	# Set up production wp_cron replacement
-	InstallSystemCron
+  # Set up production wp_cron replacement
+  installSystemCron
 fi
 
 ## Enable Development Mode
-GenerateComposeFile
+generateComposeFile
 
 ## Start traefik
-StartTraefik
+startTraefik
 
 ## Clean up after yourself...
-FinishUp
+finishUp
