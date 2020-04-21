@@ -16,15 +16,15 @@ help() {
   echo
   echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
   echo
-  echo "  -h            Help and usage."
-  echo "  -a            Enable dashboard."
+  echo "  -h            Help and usage"
+  echo "  -a            Enable dashboard"
   echo "  -b            Buffering expansion (large uploads)"
   echo "  -d            Development mode (implies -a)"
   echo "  -f            Freshen site stacks in the www/ directory"
   echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
   echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
-  echo "  -n dirname    Create a new site stack in the www/ directory"
-  echo "  -s            LetsEncrypt Staging server"
+  echo "  -n dirname    Create a new site stack"
+  echo "  -s            LetsEncrypt Staging server mode"
   echo
 }
 
@@ -48,25 +48,17 @@ sanityChecks() {
   done
 }
 
-legacyChecks() {
-  ## Housekeeping section
-  # Place one-off or immediate-use actions here.
-  local _oldCliDir
-  local _newCliDir
-  _oldCliDir="${rootDir}/wp-cli"
-  _newCliDir="${rootDir}/.wp-cli"
+ctrlC() {
+  ## Peace out gracefully on interrupt
 
-  # Move (or remove) ./wp-cli to ./.wp-cli
-  if [[ -d "$_oldCliDir" ]]; then
-    if [[ -d "$_newCliDir" ]]; then
-      sudo rm -rf "$_oldCliDir"
-    else
-      sudo mv "$_oldCliDir" "$_newCliDir"
-    fi
-  fi
+  echo "** INTERRUPTING COW MOO **"
+  cleanUp
+  exit
 }
 
 gitRepoNeedsUpdate() {
+  ## Checks if a repository is out of date
+
   git fetch
   _headHash=$(git rev-parse HEAD)
   #shellcheck disable=SC1083
@@ -131,36 +123,37 @@ writeEnv() {
 
 generateComposeFile() {
   ## Create/edit docker-compose.yml
-  cp "$composeTemplate" "$composeTemporary"
+
+  cp "$composeTemplate" "$_composeFile"
 
   # Enable 'labels:' for use in docker-compose
   if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
-    sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$composeTemporary"
+    sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$_composeFile"
   fi
 
   # Enable buffer expansion (large uploads)
   if [[ "$buffering" = true ]]; then
-    sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$composeTemporary"
+    sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$_composeFile"
   fi
 
   # Enable the Dashboard
   if [[ "$api" = true ]]; then
-    sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$composeTemporary"
+    sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$_composeFile"
   fi
 
   # Enable adminer for specified project (using the stack's directory)
   # e.g. use `abccom` for www/abc.com
   if [[ "$adminer" = true ]] && [[ ! -z "$adminerVhost" ]]; then
     adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_]' | tr '[:upper:]' '[:lower:]')
-    sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$composeTemporary"
-    sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$composeTemporary"
+    sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
+    sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
   fi
 
   if [[ "$certStaging" = true ]]; then
-    sed -i '/## RHDWP: LetsEncrypt Staging ##/,/## RHDWP: LetsEncrypt Staging end ##/s/[^#]# / /g' "$composeTemporary"
+    sed -i '/## RHDWP: LetsEncrypt Staging ##/,/## RHDWP: LetsEncrypt Staging end ##/s/[^#]# / /g' "$_composeFile"
   fi
 
-  mv "$composeTemporary" "$composeFile"
+  mv "$_composeFile" "$composeFile"
 }
 
 setupFiles() {
@@ -202,7 +195,9 @@ setupFiles() {
   sudo chown -R www-data:www-data "${rootDir}/.wp-cli"
 }
 
-runStackScripts() {
+runSiteScripts() {
+  ## Run rhdwpStack in each site directory
+
   for d in "${wwwDir}"/*; do
     _dir="${d##*/}"
     _flags=" -q"
@@ -234,11 +229,12 @@ runStackScripts() {
 
 installSystemCron() {
   ## Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
+
   local _tmpfile
   local _cronLines
   local _cronJobs
 
-  _tmpfile=$(mktemp)
+  _tmpfile=$(mktemp "${tempPrefix}XXXXX")
   _cronLines=(
     "# Update WP"
     "@daily ${utilsDir}/update.sh"
@@ -261,7 +257,7 @@ installSystemCron() {
     # Combine core tasks with generated jobs
     for line in "${_cronLines[@]}"; do
       if ! grep -q "$line" "$_tmpfile"; then
-        _cronJobs+="$line\n"
+        _cronJobs+="${line}\n"
       fi
     done
 
@@ -278,8 +274,9 @@ installSystemCron() {
 
 removeSystemCron() {
   ## Removes the wget commands (wp_cron triggering) from the $USER system crontab
+
   local _tmpfile
-  _tmpfile=$(mktemp)
+  _tmpfile=$(mktemp "${tempPrefix}XXXXX")
 
   # Load the current crontab
   crontab -l >"$_tmpfile"
@@ -296,7 +293,7 @@ removeSystemCron() {
   rm "$_tmpfile"
 }
 
-StopServer() {
+stopServer() {
   ## Stop the main traefik stack and clean up
   (cd "$traefikDir" && docker-compose down --remove-orphans -v)
   removeSystemCron
@@ -305,6 +302,7 @@ StopServer() {
 newSite() {
   ## Create a new site stack in www/
   # $1: the stack directory name (domain)
+
   _dir="$1"
   _sitePath="${wwwDir}/${_dir}"
 
@@ -330,6 +328,8 @@ newSite() {
 }
 
 startTraefik() {
+  ## Pull freshest images and start the stack
+
   (
     cd "$traefikDir"
 
@@ -339,24 +339,31 @@ startTraefik() {
   )
 }
 
-finishUp() {
-  ## Remove temp files
-  if [[ -f "$composeTemporary" ]]; then
-    rm "$composeTemporary"
-  fi
+cleanUp() {
+  ## Stop worrying where you're going
+
+  echo "Cleaning up..."
+
+  for f in "${tempPrefix}"*; do
+    [[ -f "$f" ]] && rm "$f"
+  done
 }
 
 #########
 # Main ##
 #########
+## Trap ctrl+c
+trap ctrlC INT
+
 ## Initialize variables
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 utilsDir="${rootDir}/utils"
 wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
-composeTemporary=$(mktemp)
+tempPrefix=/tmp/rhdwp_
 composeFile="${traefikDir}/docker-compose.yml"
+_composeFile="$(mktemp "${tempPrefix}.composeXXXXX")"
 cronStart='# RHDWP Cron #'
 cronEnd='# RHDWP Cron end #'
 network=web
@@ -388,12 +395,12 @@ while getopts "habcdfkm:n:ps" opt; do
     ;;
   f) # Freshen sites (www/ site stacks)
     echo "Freshen sites"
-    runStackScripts
+    runSiteScripts
     exit
     ;;
   k) # Kill the server and cleanup
     echo "Stopping main server and cleaning up..."
-    StopServer
+    stopServer
     echo "Done."
     exit 0
     ;;
@@ -430,7 +437,6 @@ done
 
 ## Before we begin...
 sanityChecks
-legacyChecks
 
 ## Generate LetsEncrypt storage and log files
 setupFiles
@@ -459,5 +465,5 @@ generateComposeFile
 ## Start traefik
 startTraefik
 
-## Clean up after yourself...
-finishUp
+## Don't be a slob
+cleanUp
