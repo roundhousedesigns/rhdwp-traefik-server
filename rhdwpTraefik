@@ -333,7 +333,9 @@ cleanUp() {
   echo "Cleaning up..."
 
   for f in "${tempPrefix}"*; do
-    sudo rm "$f"
+    if [[ -a "$f" ]]; then
+      sudo rm "$f"
+    fi
   done
 }
 
