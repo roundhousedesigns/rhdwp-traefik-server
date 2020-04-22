@@ -456,5 +456,3 @@ startTraefik
 
 ## Don't be a slob
 cleanUp
-
-exit 0
