@@ -237,7 +237,7 @@ installCron() {
   _tmpfile=$(mktemp "${tempPrefix}XXXXX")
 
   # Load the current crontab
-  crontab -l > "$_tmpfile"
+  crontab -u "$USER" -l > "$_tmpfile"
 
   # Check if RHDWP cron is already installed
   if ! grep -q "$cronStart" "$_tmpfile"; then
