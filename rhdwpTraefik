@@ -227,39 +227,27 @@ runSiteScripts() {
   done
 }
 
-installSystemCron() {
+installCron() {
   ## Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
 
   local _tmpfile
-  local _cronLines
+  local _rebootJob="@reboot ${rootDir}/rhdwpTraefik"
   local _cronJobs
 
   _tmpfile=$(mktemp "${tempPrefix}XXXXX")
-  _cronLines=(
-    "# Update WP"
-    "@daily ${utilsDir}/update.sh"
-    "# Start RHDWP server (traefik) at reboot with launch script"
-    "@reboot ${rootDir}/rhdwpTraefik"
-    "# RHDWP www\n"
-  )
 
   # Load the current crontab
-  if [[ -f "/var/spool/cron/crontabs/${USER}" ]]; then
-    crontab -l >"$_tmpfile"
-  fi
+  crontab -l > "$_tmpfile"
 
   # Check if RHDWP cron is already installed
-  if ! grep "$cronStart" "$_tmpfile"; then
-
+  if ! grep -q "$cronStart" "$_tmpfile"; then
     # Add entry point comments
-    printf "%s\n%s" "$cronStart" "$cronEnd" >>"$_tmpfile"
+    printf "%s\n%s\n" "$cronStart" "$cronEnd" >>"$_tmpfile"
 
-    # Combine core tasks with generated jobs
-    for line in "${_cronLines[@]}"; do
-      if ! grep -q "$line" "$_tmpfile"; then
-        _cronJobs+="${line}\n"
-      fi
-    done
+    # Add @reboot cron job
+    if ! grep -q "$_rebootJob" "$_tmpfile"; then
+      _cronJobs+="${_rebootJob}"
+    fi
 
     # Insert the new cron jobs
     sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
@@ -272,7 +260,7 @@ installSystemCron() {
   rm "$_tmpfile"
 }
 
-removeSystemCron() {
+removeCron() {
   ## Removes the wget commands (wp_cron triggering) from the $USER system crontab
 
   local _tmpfile
@@ -296,7 +284,7 @@ removeSystemCron() {
 stopServer() {
   ## Stop the main traefik stack and clean up
   (cd "$traefikDir" && docker-compose down --remove-orphans -v)
-  removeSystemCron
+  removeCron
 }
 
 newSite() {
@@ -358,10 +346,9 @@ trap ctrlC INT
 ## Initialize variables
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
-utilsDir="${rootDir}/utils"
 wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
-tempPrefix=/tmp/rhdwp_
+tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 composeFile="${traefikDir}/docker-compose.yml"
 _composeFile="$(mktemp "${tempPrefix}.composeXXXXX")"
 cronStart='# RHDWP Cron #'
@@ -374,7 +361,7 @@ certStaging=false
 buffering=false
 
 ## Get options
-while getopts "habcdfkm:n:ps" opt; do
+while getopts "habdfkm:n:s" opt; do
   case "$opt" in
   h) # display help
     help
@@ -453,10 +440,10 @@ writeEnv
 ## System setup
 if [[ $devMode = true ]]; then
   # Disable wp_cron customizations on development environments
-  removeSystemCron
+  removeCron
 else
   # Set up production wp_cron replacement
-  installSystemCron
+  installCron
 fi
 
 ## Enable Development Mode
