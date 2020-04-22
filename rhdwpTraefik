@@ -117,7 +117,7 @@ writeEnv() {
 	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
-  sudo chown "$USER" "$envFile"
+  sudo chown "$user" "$envFile"
   sudo chmod 600 "$envFile"
 }
 
@@ -222,13 +222,13 @@ runSiteScripts() {
 
       # Run
       # shellcheck disable=SC2086
-      sudo -u "$USER" ./rhdwpStack $_flags
+      sudo -u "$user" ./rhdwpStack $_flags
     )
   done
 }
 
 installCron() {
-  ## Generates the wget commands to trigger WP Cron manually, and inserts into $USER crontab
+  ## Generates the wget commands to trigger WP Cron manually, and inserts into $user crontab
 
   local _tmpfile
   local _rebootJob="@reboot ${rootDir}/rhdwpTraefik"
@@ -237,7 +237,7 @@ installCron() {
   _tmpfile=$(mktemp "${tempPrefix}XXXXX")
 
   # Load the current crontab
-  crontab -u "$USER" -l > "$_tmpfile"
+  crontab -u "$user" -l > "$_tmpfile"
 
   # Check if RHDWP cron is already installed
   if ! grep -q "$cronStart" "$_tmpfile"; then
@@ -253,7 +253,7 @@ installCron() {
     sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
 
     # Install the new crontab
-    crontab -u "$USER" "$_tmpfile"
+    crontab -u "$user" "$_tmpfile"
   fi
 
   # Clean up
@@ -261,7 +261,7 @@ installCron() {
 }
 
 removeCron() {
-  ## Removes the wget commands (wp_cron triggering) from the $USER system crontab
+  ## Removes the wget commands (wp_cron triggering) from the $user system crontab
 
   local _tmpfile
   _tmpfile=$(mktemp "${tempPrefix}XXXXX")
@@ -275,7 +275,7 @@ removeCron() {
   fi
 
   # Install the new crontab
-  crontab -u "$USER" "$_tmpfile"
+  crontab -u "$user" "$_tmpfile"
 
   # Clean up
   rm "$_tmpfile"
@@ -357,6 +357,7 @@ cronStart='# RHDWP Cron #'
 cronEnd='# RHDWP Cron end #'
 network=web
 devMode=false
+user=gaswirth
 api=
 adminer=
 certStaging=false
