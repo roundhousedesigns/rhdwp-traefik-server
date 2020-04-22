@@ -189,7 +189,7 @@ setupFiles() {
 
   ## Create sites directory
   if [[ ! -d "${wwwDir}" ]]; then
-    mkdir "${rootDir}/www"
+    mkdir "${wwwDir}"
   fi
 
   ## wp-cli permissions
