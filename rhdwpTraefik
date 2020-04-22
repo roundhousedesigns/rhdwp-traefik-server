@@ -333,7 +333,7 @@ cleanUp() {
   echo "Cleaning up..."
 
   for f in "${tempPrefix}"*; do
-    [[ -f "$f" ]] && rm "$f"
+    sudo rm "$f"
   done
 }
 
