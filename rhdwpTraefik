@@ -154,6 +154,7 @@ generateComposeFile() {
   fi
 
   mv "$_composeFile" "$composeFile"
+  chown "$user":"$user" "$composeFile"
 }
 
 setupFiles() {
