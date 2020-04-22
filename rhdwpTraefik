@@ -124,7 +124,7 @@ writeEnv() {
 generateComposeFile() {
   ## Create/edit docker-compose.yml
 
-  cp "$composeTemplate" "$_composeFile"
+  cp -- "$composeTemplate" "$_composeFile"
 
   # Enable 'labels:' for use in docker-compose
   if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
