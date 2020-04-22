@@ -6,4 +6,4 @@ FIX
 IMPROVE
 - HTTPS cert generation for server FQDN
   - force https on adminer
-- Check if `docker-compose pull` necessary before pulling and restarting Traefik
+- Run containers as www-data
