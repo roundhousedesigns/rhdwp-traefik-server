@@ -238,7 +238,7 @@ installCron() {
   _tmpfile=$(mktemp "${tempPrefix}XXXXX")
 
   # Load the current crontab
-  if (crontab -u "$user" -l) || [[ $(crontab -u "$user" -l | wc -c) == 0 ]]; then
+  if [[ $(crontab -u "$user" -l | wc -c) -eq 0 ]]; then
     crontab -u "$user" -l > "$_tmpfile"
   fi
 
