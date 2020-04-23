@@ -124,7 +124,7 @@ writeEnv() {
 generateComposeFile() {
   ## Create/edit docker-compose.yml
 
-  cat "$composeTemplate" > "$_composeFile"
+  cat "$composeTemplate" >"$_composeFile"
 
   # Enable 'labels:' for use in docker-compose
   if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
@@ -239,7 +239,7 @@ installCron() {
 
   # Load the current crontab
   if [[ $(crontab -u "$user" -l | wc -c) -ne 0 ]]; then
-    crontab -u "$user" -l > "$_tmpfile"
+    crontab -u "$user" -l >"$_tmpfile"
   fi
 
   # Check if RHDWP cron is already installed
@@ -336,7 +336,7 @@ cleanUp() {
   echo "Cleaning up..."
 
   for f in "${tempPrefix}"*; do
-    if [[ -a "$f" ]]; then
+    if [[ -e "$f" ]]; then
       sudo rm "$f"
     fi
   done
