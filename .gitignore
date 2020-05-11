@@ -1,4 +1,4 @@
-.secrets
+.cache
 *.log
 www/*
 traefik/.env
