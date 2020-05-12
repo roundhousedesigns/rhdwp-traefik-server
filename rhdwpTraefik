@@ -117,12 +117,15 @@ writeEnv() {
 	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
-  sudo chown "$user" "$envFile"
+  sudo chown root:root "$envFile"
   sudo chmod 600 "$envFile"
 }
 
 generateComposeFile() {
   ## Create/edit docker-compose.yml
+  local composeFile="${traefikDir}/docker-compose.yml"
+  local _composeFile
+  _composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
 
   cat "$composeTemplate" >"$_composeFile"
 
@@ -229,45 +232,24 @@ runSiteScripts() {
 }
 
 installCron() {
-  ## Generates the wget commands to trigger WP Cron manually, and inserts into $user crontab
-
-  local _tmpfile
+  ## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
   local _cronMsg="## Make sure Traefik restarts on reboot"
-  local _cronJob="@reboot ${rootDir}/rhdwpTraefik"
-  local _cronFile=/etc/cron.d/rhdwp
+  local _cronJob="@reboot root ${rootDir}/rhdwpTraefik"
 
-  if [[ ! -f "$_cronFile" ]]; then
-    sudo touch "$_cronFile"
-    sudo chown 644 "$_cronFile"
-    printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee -a "$_cronFile" >/dev/null
-  fi
+  sudo touch "$cronFile"
+  sudo chown 644 "$cronFile"
+  printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee -a "$cronFile" >/dev/null
 }
 
-removeCron() {
-  ## Removes the wget commands (wp_cron triggering) from the $user system crontab
-
-  local _tmpfile
-  _tmpfile=$(mktemp "${tempPrefix}XXXXX")
-
-  # Load the current crontab
-  crontab -l >"$_tmpfile"
-
-  # Find and remove the job(s)
-  if grep -q "$cronStart" "$_tmpfile"; then
-    sed -i "/$cronStart/,/$cronEnd/d" "$_tmpfile"
-  fi
-
-  # Install the new crontab
-  crontab -u "$user" "$_tmpfile"
-
-  # Clean up
-  rm "$_tmpfile"
+uninstallCron() {
+  ## Removes up the cron.d entry
+  sudo rm -f "$cronFile"
 }
 
 stopServer() {
   ## Stop the main traefik stack and clean up
   (cd "$traefikDir" && docker-compose down --remove-orphans -v)
-  removeCron
+  uninstallCron
 }
 
 newSite() {
@@ -334,10 +316,7 @@ traefikDir="${rootDir}/traefik"
 wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
-composeFile="${traefikDir}/docker-compose.yml"
-_composeFile="$(mktemp "${tempPrefix}.composeXXXXX")"
-cronStart='# RHDWP Cron #'
-cronEnd='# RHDWP Cron end #'
+cronFile=/etc/cron.d/rhdwpTraefik
 network=web
 devMode=false
 user=gaswirth
@@ -426,7 +405,7 @@ writeEnv
 ## System setup
 if [[ $devMode = true ]]; then
   # Disable wp_cron customizations on development environments
-  removeCron
+  uninstallCron
 else
   # Set up production wp_cron replacement
   installCron
