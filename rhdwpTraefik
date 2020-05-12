@@ -239,7 +239,7 @@ installCron() {
   if [[ ! -f "$_cronFile" ]]; then
     sudo touch "$_cronFile"
     sudo chown 644 "$_cronFile"
-    printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee -a "$_cronFile"
+    printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee -a "$_cronFile" >/dev/null
   fi
 }
 
