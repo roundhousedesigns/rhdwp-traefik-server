@@ -203,7 +203,7 @@ runSiteScripts() {
   ## Run rhdwpStack in each site directory
 
   for d in "${wwwDir}"/*; do
-    _dir="${d##*/}"
+    dir="${d##*/}"
     _flags=" -q"
     _branch=
 
@@ -214,7 +214,7 @@ runSiteScripts() {
 
       if gitRepoNeedsUpdate; then
         # Update and rebuild
-        echo "UPDATE $_dir"
+        echo "UPDATE $dir"
 
         # Check for master branch
         if [[ "$_branch" != "master" ]]; then
@@ -233,12 +233,12 @@ runSiteScripts() {
 
 installCron() {
   ## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
-  local _cronMsg="## Make sure Traefik restarts on reboot"
-  local _cronJob="@reboot root ${rootDir}/rhdwpTraefik"
+  local cronMsg="## Make sure Traefik restarts on reboot"
+  local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
 
   sudo touch "$cronFile"
   sudo chown 644 "$cronFile"
-  printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee "$cronFile" >/dev/null
+  printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
 }
 
 uninstallCron() {
@@ -256,26 +256,26 @@ newSite() {
   ## Create a new site stack in www/
   # $1: the stack directory name (domain)
 
-  _dir="$1"
-  _sitePath="${wwwDir}/${_dir}"
+  local dir="$1"
+  local sitePath="${wwwDir}/${dir}"
 
   # Sanity check
-  if [ -z "$_dir" ]; then
+  if [ -z "$dir" ]; then
     echo "No directory name supplied."
     exit 1
   fi
 
   # Update docker images
-  for _sub in {1..4}; do
-    local _ver="7.${_sub}"
+  for sub in {0..4}; do
+    local ver="7.${sub}"
 
-    docker pull "wordpress:php${_ver}"
+    docker pull "wordpress:php${ver}"
   done
 
   # Spin up the stack
   (
-    git clone git@github.com:gaswirth/rhdwp-docker "${_sitePath}"
-    cd "$_sitePath" || exit
+    git clone git@github.com:gaswirth/rhdwp-docker "${sitePath}"
+    cd "$sitePath" || exit
     ./rhdwpStack
   )
 }
