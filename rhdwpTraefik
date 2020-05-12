@@ -117,8 +117,8 @@ writeEnv() {
 	DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
-  sudo chown root:root "$envFile"
-  sudo chmod 600 "$envFile"
+  sudo chown "$serverUser":"$serverGroup" "$envFile"
+  sudo chmod 660 "$envFile"
 }
 
 generateComposeFile() {
@@ -178,7 +178,7 @@ setupFiles() {
   acme="${traefikDir}/acme.json"
   if [[ ! -f "$acme" ]]; then
     sudo touch "$acme"
-    sudo chown www-data:www-data "$acme"
+    sudo chown "$serverUser":"$serverGroup" "$acme"
     sudo chmod 600 "$acme"
   fi
 
@@ -196,7 +196,7 @@ setupFiles() {
   fi
 
   ## wp-cli permissions
-  sudo chown -R www-data:www-data "${rootDir}/.wp-cli"
+  sudo chown -R "$serverUser":"$serverGroup" "${rootDir}/.wp-cli"
 }
 
 runSiteScripts() {
@@ -319,6 +319,8 @@ tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]'
 cronFile=/etc/cron.d/rhdwpTraefik
 network=web
 devMode=false
+serverUser=www-data
+serverGroup=www-data
 user=gaswirth
 api=
 adminer=
