@@ -238,7 +238,7 @@ installCron() {
 
   sudo touch "$cronFile"
   sudo chown 644 "$cronFile"
-  printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee -a "$cronFile" >/dev/null
+  printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee "$cronFile" >/dev/null
 }
 
 uninstallCron() {
