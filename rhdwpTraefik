@@ -232,35 +232,15 @@ installCron() {
   ## Generates the wget commands to trigger WP Cron manually, and inserts into $user crontab
 
   local _tmpfile
-  local _rebootJob="@reboot ${rootDir}/rhdwpTraefik"
-  local _cronJobs
+  local _cronMsg="## Make sure Traefik restarts on reboot"
+  local _cronJob="@reboot ${rootDir}/rhdwpTraefik"
+  local _cronFile=/etc/cron.d/rhdwp
 
-  _tmpfile=$(mktemp "${tempPrefix}XXXXX")
-
-  # Load the current crontab
-  if [[ $(crontab -u "$user" -l | wc -c) -ne 0 ]]; then
-    crontab -u "$user" -l >"$_tmpfile"
+  if [[ ! -f "$_cronFile" ]]; then
+    sudo touch "$_cronFile"
+    sudo chown 644 "$_cronFile"
+    printf '%s\n%s' "$_cronMsg" "$_cronJob" | sudo tee -a "$_cronFile"
   fi
-
-  # Check if RHDWP cron is already installed
-  if ! grep -q "$cronStart" "$_tmpfile"; then
-    # Add entry point comments
-    printf "%s\n%s\n" "$cronStart" "$cronEnd" >>"$_tmpfile"
-
-    # Add @reboot cron job
-    if ! grep -q "$_rebootJob" "$_tmpfile"; then
-      _cronJobs+="${_rebootJob}"
-    fi
-
-    # Insert the new cron jobs
-    sed -i "/$cronStart/a $_cronJobs" "$_tmpfile"
-
-    # Install the new crontab
-    crontab -u "$user" "$_tmpfile"
-  fi
-
-  # Clean up
-  rm "$_tmpfile"
 }
 
 removeCron() {
