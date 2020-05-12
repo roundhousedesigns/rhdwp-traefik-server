@@ -234,16 +234,11 @@ runSiteScripts() {
 installCron() {
   ## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
   local cronMsg="## Make sure Traefik restarts on reboot"
-  local cronJobTraefik="@reboot       root  ${rootDir}/rhdwpTraefik"
-  local cronJobSites="*/5 * * * *   root  /usr/local/sbin/rhdwpCron"
+  local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
 
-  # Install cron.d file
   sudo touch "$cronFile"
   sudo chown 644 "$cronFile"
-  printf '%s\n%s\n%s' "$cronMsg" "$cronJobTraefik" "$cronJobSites" | sudo tee "$cronFile" >/dev/null
-
-  # Install sites
-  sudo cp "${rootDir}/lib/rhdwpCron.sh" /usr/local/sbin/rhdwpCron
+  printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
 }
 
 uninstallCron() {
