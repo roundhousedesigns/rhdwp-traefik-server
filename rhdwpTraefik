@@ -237,7 +237,8 @@ installCron() {
   local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
 
   sudo touch "$cronFile"
-  sudo chown 644 "$cronFile"
+  sudo chown root:root "$cronFile"
+  sudo chmod 644 "$cronFile"
   printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
 }
 
