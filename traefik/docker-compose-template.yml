@@ -8,6 +8,7 @@ services:
     command:
       - --entrypoints.http.address=:80
       - --entrypoints.https.address=:443
+      - --entrypoints.adminer.address=:8080
       - --providers.docker=true
       - --providers.docker.endpoint=unix:///var/run/docker.sock
       - --providers.docker.exposedbydefault=false
@@ -47,14 +48,14 @@ services:
     ## RHDWP: API ##
     #   - "traefik.enable=true"
     #   - "traefik.http.routers.api.entrypoints=http"
-    #   - "traefik.http.routers.api.rule=Host(`monitor.${FQDN}`)"
+    #   - "traefik.http.routers.api.rule=Host(`${FQDN}`)"
     #   - "traefik.http.middlewares.api-https-redirect.redirectscheme.scheme=https"
     #   - "traefik.http.routers.api-https.entrypoints=https"
     #   - "traefik.http.routers.api-https.tls=true"
     #   - "traefik.http.routers.api-https.tls.certresolver=cloudflare"
-    #   - "traefik.http.routers.api-https.tls.domains[0].main=monitor.${FQDN}"
+    #   - "traefik.http.routers.api-https.tls.domains[0].main=${FQDN}"
     #   - "traefik.http.routers.api-https.middlewares=api-auth"
-    #   - "traefik.http.routers.api-https.rule=Host(`monitor.${FQDN}`)"
+    #   - "traefik.http.routers.api-https.rule=Host(`${FQDN}`)"
     #   - "traefik.http.middlewares.api-auth.basicauth.users=admin:$$2y$$05$$7t25C0myBoWErPjCUsEDPe/TKLjdiywW4HchSJiKNmK5nZk2saVLW"
     #   - "traefik.http.routers.api.middlewares=api-https-redirect"
     #   - "traefik.http.routers.api-https.service=api@internal"
@@ -62,19 +63,19 @@ services:
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_API_KEY=${CF_API_KEY}
-  
   ## RHDWP: Adminer ##
   # adminer:
   #   image: adminer
-  #   ports:
-  #     - 8080:8080
   #   environment:
   #     - ADMINER_DEFAULT_SERVER=mysql
   #   networks:
-  #     - %%project_label%%_internal
+  #     - web
+  #   ports:
+  #     - 8080:8080
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.adminer.rule=Host(`adminer.${FQDN}`)"
+  #     - "traefik.http.routers.adminer.entrypoints=adminer"
+  #     - "traefik.http.routers.adminer.rule=Host(`${FQDN}`)"
   ## RHDWP: Adminer end ##
 
 networks:

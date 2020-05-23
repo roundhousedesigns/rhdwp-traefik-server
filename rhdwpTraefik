@@ -22,7 +22,7 @@ help() {
   echo "  -d            Development mode (implies -a)"
   echo "  -f            Freshen site stacks in the www/ directory"
   echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
-  echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name (xyz.com => xyzcom)"
+  echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name."
   echo "  -n dirname    Create a new site stack"
   echo "  -s            LetsEncrypt Staging server mode"
   echo
@@ -147,7 +147,7 @@ generateComposeFile() {
   # Enable adminer for specified project (using the stack's directory)
   # e.g. use `abccom` for www/abc.com
   if [[ "$adminer" = true ]] && [[ ! -z "$adminerVhost" ]]; then
-    adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_]' | tr '[:upper:]' '[:lower:]')
+    adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
     sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
     sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
   fi
