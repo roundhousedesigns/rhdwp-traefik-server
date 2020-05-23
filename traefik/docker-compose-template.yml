@@ -69,7 +69,7 @@ services:
   #   environment:
   #     - ADMINER_DEFAULT_SERVER=mysql
   #   networks:
-  #     - web
+  #     - %%project_label%%_internal
   #   ports:
   #     - 8080:8080
   #   labels:
