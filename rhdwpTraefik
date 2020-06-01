@@ -238,7 +238,7 @@ installCron() {
 
   sudo touch "$cronFile"
   sudo chown root:root "$cronFile"
-  sudo chmod 644 "$cronFile"
+  sudo chmod 600 "$cronFile"
   printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
 }
 
