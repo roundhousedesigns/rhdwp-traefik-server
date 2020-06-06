@@ -16,13 +16,17 @@ services:
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##
-      ## RHDWP: LetsEncrypt Staging ##
-      # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
-      ## RHDWP: LetsEncrypt Staging end ##
+      ## Staging
+      - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
       - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+      - --certificatesresolvers.http.acme.email=${CF_API_EMAIL}
+      - --certificatesresolvers.http.acme.storage=acme.json
+      - --certificatesresolvers.http.acme.httpchallenge.entrypoint=http
+      ## Logging
       - --log.level=error
       # - --log.filePath=./log/error.log
     security_opt:
