@@ -23,9 +23,10 @@ services:
       - --certificatesresolvers.http.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.http.acme.storage=acme.json
       - --certificatesresolvers.http.acme.httpchallenge.entrypoint=http
-      ## Staging
+      ## RHDWP: Cert staging ##
       # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
+      ## RHDWP: Cert staging end ##
       ## Resolvers
       ## Logging
       - --log.level=error

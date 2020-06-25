@@ -153,7 +153,7 @@ generateComposeFile() {
 	fi
 
 	if [[ "$certStaging" = true ]]; then
-		sed -i '/## RHDWP: LetsEncrypt Staging ##/,/## RHDWP: LetsEncrypt Staging end ##/s/[^#]# / /g' "$_composeFile"
+		sed -i '/## RHDWP: Cert staging ##/,/## RHDWP: Cert staging end ##/s/[^#]# / /g' "$_composeFile"
 	fi
 
 	mv "$_composeFile" "$composeFile"
@@ -347,7 +347,7 @@ while getopts "habdfkm:n:s" opt; do
 		exit
 		;;
 	k) # Kill the server and cleanup
-		echo "Stopping main server and cleaning up..."
+		echo "Stopping main server and cleaning up cron jobs..."
 		stopServer
 		echo "Done."
 		exit 0
