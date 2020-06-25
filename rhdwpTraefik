@@ -108,13 +108,13 @@ writeEnv() {
 	## Write to .env and lock it down
 
 	cat <<-EOT >"$envFile"
-	FQDN=$(hostname -f)
-	CF_API_EMAIL=$CF_API_EMAIL
-	CF_API_KEY=$CF_API_KEY
-	MG_API_KEY=$MG_API_KEY
-	DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
-	DEV_SMTP_PASS=$DEV_SMTP_PASS
-	DEV_SMTP_FROM=$DEV_SMTP_FROM
+		FQDN=$(hostname -f)
+		CF_API_EMAIL=$CF_API_EMAIL
+		CF_API_KEY=$CF_API_KEY
+		MG_API_KEY=$MG_API_KEY
+		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
+		DEV_SMTP_PASS=$DEV_SMTP_PASS
+		DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
 	sudo chown "$serverUser":"$serverGroup" "$envFile"
