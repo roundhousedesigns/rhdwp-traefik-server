@@ -73,6 +73,7 @@ services:
   #   image: adminer
   #   environment:
   #     - ADMINER_DEFAULT_SERVER=mysql
+  #     - ADMINER_DESIGN=nicu
   #   networks:
   #     - %%project_label%%_internal
   #   ports:
