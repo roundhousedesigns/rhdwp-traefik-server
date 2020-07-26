@@ -175,7 +175,7 @@ setupFiles() {
 	fi
 
 	## LetsEncrypt storage
-	acme="${traefikDir}/acme.json"
+	acme="${storageDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
 		sudo touch "$acme"
 		sudo chown "$serverUser":"$serverGroup" "$acme"
@@ -307,6 +307,7 @@ trap ctrlC INT
 ## Initialize variables
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
+storageDir=/mnt
 wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")

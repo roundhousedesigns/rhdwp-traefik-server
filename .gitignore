@@ -8,3 +8,6 @@ traefik/docker-compose.yml
 
 .wp-cli/*
 !.wp-cli/config.yml
+
+glusterfs/*
+!glusterfs/.whatami
