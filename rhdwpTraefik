@@ -18,7 +18,6 @@ help() {
 	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
 	echo
 	echo "  -h            Help and usage"
-	echo "  -a            Enable dashboard"
 	echo "  -b            Buffering expansion (large uploads)"
 	echo "  -d            Development mode (implies -a)"
 	echo "  -f            Freshen site stacks in the www/ directory"
@@ -122,44 +121,6 @@ writeEnv() {
 	sudo chmod 660 "$env"
 }
 
-generateComposeFile() {
-	## Create/edit traefik config
-	local _composeFile
-	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
-
-	cat "$composeTemplate" >"$_composeFile"
-
-	# Enable 'labels:' for use in config file
-	if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
-		sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$_composeFile"
-	fi
-
-	# Enable buffer expansion (large uploads)
-	if [[ "$buffering" = true ]]; then
-		sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$_composeFile"
-	fi
-
-	# Enable the Dashboard
-	if [[ "$api" = true ]]; then
-		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$_composeFile"
-	fi
-
-	# Enable adminer for specified project (using the stack's directory)
-	# e.g. use `abccom` for www/abc.com
-	if [[ "$adminer" = true ]] && [[ -n "$adminerVhost" ]]; then
-		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
-		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
-		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
-	fi
-
-	if [[ "$certStaging" = true ]]; then
-		sed -i '/## RHDWP: Cert staging ##/,/## RHDWP: Cert staging end ##/s/[^#]# / /g' "$_composeFile"
-	fi
-
-	mv "$_composeFile" "$composeFile"
-	chown "$user":"$user" "$composeFile"
-}
-
 setupFiles() {
 	## Generate storage and log files, if necessary
 
@@ -259,7 +220,7 @@ newSite() {
 
 	# Spin up the stack
 	(
-		git clone git@github.com:gaswirth/rhdwp-docker "${sitePath}"
+		git clone -b swarm-gluster git@github.com:gaswirth/rhdwp-docker "${sitePath}"
 		cd "$sitePath" || exit
 		./rhdwpStack
 	)
@@ -305,21 +266,16 @@ devMode=false
 serverUser=www-data
 serverGroup=www-data
 user=gaswirth
-api=
 adminer=
 certStaging=false
 buffering=false
 
 ## Get options
-while getopts "habdfkm:n:s" opt; do
+while getopts "hbdfkm:n:s" opt; do
 	case "$opt" in
 	h) # display help
 		help
 		exit 0
-		;;
-	a) # API/Dashboard enabled
-		echo "Dashboard enabled."
-		api=true
 		;;
 	b) # Large upload/buffer support
 		echo "Large upload/buffer support enabled."
@@ -328,7 +284,6 @@ while getopts "habdfkm:n:s" opt; do
 	d) # Development mode
 		echo "Development mode enabled."
 		devMode=true
-		api=true
 		;;
 	f) # Freshen sites (www/ site stacks)
 		echo "Freshen sites"
@@ -395,9 +350,6 @@ else
 	# Set up production wp_cron replacement
 	installCron
 fi
-
-## Enable Development Mode
-generateComposeFile
 
 ## Start traefik
 startTraefik
