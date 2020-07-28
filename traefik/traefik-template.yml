@@ -27,7 +27,7 @@ services:
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
       ## Logging
-      - --log.level=DEBUG
+      - --log.level=ERROR
     environment:
       FQDN: "${FQDN}"
       CLOUDFLARE_EMAIL: "${CLOUDFLARE_EMAIL}"
@@ -46,9 +46,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /mnt/letsencrypt/acme.json:/acme.json
     deploy:
+      replicas: 1
       placement:
-        constraints:
-          [node.role == manager]
+        constraints: [node.role == manager]
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -56,12 +56,6 @@ services:
     ## RHDWP: useLabels ##
     #   labels:
     ## RHDWP: useLabels end ##
-    ## RHDWP: Buffering ##
-    #     - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
-    #     - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
-    #     - "traefik.https.middlewares.limit.buffering.maxResponseBodyBytes=4000000000"
-    #     - "traefik.https.middlewares.limit.buffering.retryExpression=IsNetworkError() && Attempts() < 2"
-    ## RHDWP: Buffering end ##
     ## RHDWP: API ##
     #     - "traefik.enable=true"
     #     - "traefik.http.routers.api.entrypoints=http"
@@ -71,7 +65,7 @@ services:
     #     - "traefik.http.routers.api-https.tls=true"
     #     - "traefik.http.routers.api-https.tls.certresolver=cloudflare"
     #     - "traefik.http.routers.api-https.tls.domains[0].main=${FQDN}"
-    #     - "traefik.http.routers.api-https.tls.domains[0].sans=traefik.${FQDN}"
+    #     - "traefik.http.routers.api-https.tls.domains[0].sans=traefik.${FQDN},portainer.${FQDN}"
     #     - "traefik.http.routers.api-https.middlewares=api-auth"
     #     - "traefik.http.routers.api-https.rule=Host(`traefik.${FQDN}`)"
     #     - "traefik.http.middlewares.api-auth.basicauth.users=admin:$$2y$$05$$7t25C0myBoWErPjCUsEDPe/TKLjdiywW4HchSJiKNmK5nZk2saVLW"
@@ -79,6 +73,13 @@ services:
     #     - "traefik.http.routers.api-https.service=api@internal"
     #     - "traefik.http.services.api-https.loadbalancer.server.port=80"
     ## RHDWP: API end ##
+    ## RHDWP: Buffering ##
+    #     - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
+    #     - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
+    #     - "traefik.https.middlewares.limit.buffering.maxResponseBodyBytes=4000000000"
+    #     - "traefik.https.middlewares.limit.buffering.retryExpression=IsNetworkError() && Attempts() < 2"
+    ## RHDWP: Buffering end ##
+
   ## RHDWP: Adminer ##
   # adminer:
   #   image: adminer
@@ -96,8 +97,12 @@ services:
   ## RHDWP: Adminer end ##
 
 networks:
+  internal:
+    driver: overlay
+    name: internal
   proxy:
-    external: true
+    driver: overlay
+    name: proxy
   ## RHDWP: Adminer ##
   # %%project_label%%_internal:
   #   external: true

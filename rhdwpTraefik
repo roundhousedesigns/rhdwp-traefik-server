@@ -182,8 +182,12 @@ setupFiles() {
 		mkdir "${wwwDir}"
 	fi
 
-	## wp-cli permissions
-	sudo chown -R "$serverUser":"$serverGroup" "${rootDir}/.wp-cli"
+	## Generates the .wp-cli/config.yml file
+	# if [[ ! -d "$wpcli" ]]; then
+	# 	mkdir -p "$wpcli"
+	# 	printf 'apache_modules:\n  - mod_rewrite' > "${wpcli}/config.yml"
+	# fi
+	# sudo chown -R "$serverUser":"$serverGroup" "$wpcli"
 }
 
 runSiteScripts() {
@@ -289,7 +293,7 @@ trap ctrlC INT
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 env="${traefikDir}/.env"
-storageDir=/mnt/www
+storageDir=/mnt
 wwwDir="${storageDir}/www"
 acme="${storageDir}/letsencrypt/acme.json"
 composeTemplate="${traefikDir}/traefik-template.yml"
@@ -297,7 +301,7 @@ composeFile="${traefikDir}/traefik.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 traefikLabel=traefik
 cronFile=/etc/cron.d/rhdwpTraefik
-network=proxy
+# wpcli="${storageDir}/.wp-cli"
 devMode=false
 serverUser=www-data
 serverGroup=www-data
@@ -376,9 +380,9 @@ sanityChecks
 setupFiles
 
 ## Create web network
-if ! docker network ls | grep -q "$network"; then
-	docker network create --driver=overlay "$network" || true
-fi
+# if ! docker network ls | grep -q "$network"; then
+# 	docker network create --driver=overlay "$network" || true
+# fi
 
 ## Retrieve or prompt for environment variables, and export to .env
 askEnv
