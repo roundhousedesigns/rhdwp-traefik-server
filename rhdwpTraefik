@@ -1,4 +1,5 @@
-#!/bin/bash -e
+#!/bin/bash
+set -ea
 
 ##################
 ## rhdwpTraefik ##
@@ -12,7 +13,7 @@
 
 help() {
 	## Display help
-	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
+	echo "Generates config and starts/stops the RHDWP Traefik instance."
 	echo
 	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
 	echo
@@ -39,7 +40,7 @@ sanityChecks() {
 	echo "Checking sudo freshness..."
 	sudo echo "Done."
 
-	deps=(docker docker-compose)
+	deps=(docker)
 	for i in "${deps[@]}"; do
 		if ! hash "$i" 2>/dev/null; then
 			printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
@@ -72,13 +73,13 @@ askEnv() {
 	## Verify .env values
 
 	# CloudFlare account email
-	while [[ -z "$CF_API_EMAIL" ]]; do
-		read -r -p "CloudFlare account email: " CF_API_EMAIL
+	while [[ -z "$CLOUDFLARE_EMAIL" ]]; do
+		read -r -p "CloudFlare account email: " CLOUDFLARE_EMAIL
 	done
 
 	# CloudFlare API Key
-	while [[ -z "$CF_API_KEY" ]]; do
-		read -r -p "CloudFlare API Key: " CF_API_KEY
+	while [[ -z "$CLOUDFLARE_API_KEY" ]]; do
+		read -r -p "CloudFlare API Key: " CLOUDFLARE_API_KEY
 	done
 
 	# Mailgun API Key
@@ -107,29 +108,28 @@ askEnv() {
 writeEnv() {
 	## Write to .env and lock it down
 
-	cat <<-EOT >"$envFile"
+	cat <<-EOT >"$env"
 		FQDN=$(hostname -f)
-		CF_API_EMAIL=$CF_API_EMAIL
-		CF_API_KEY=$CF_API_KEY
+		CLOUDFLARE_EMAIL=$CLOUDFLARE_EMAIL
+		CLOUDFLARE_API_KEY=$CLOUDFLARE_API_KEY
 		MG_API_KEY=$MG_API_KEY
 		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
 		DEV_SMTP_PASS=$DEV_SMTP_PASS
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
 	EOT
 
-	sudo chown "$serverUser":"$serverGroup" "$envFile"
-	sudo chmod 660 "$envFile"
+	sudo chown "$serverUser":"$serverGroup" "$env"
+	sudo chmod 660 "$env"
 }
 
 generateComposeFile() {
-	## Create/edit docker-compose.yml
-	local composeFile="${traefikDir}/docker-compose.yml"
+	## Create/edit traefik config
 	local _composeFile
 	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
 
 	cat "$composeTemplate" >"$_composeFile"
 
-	# Enable 'labels:' for use in docker-compose
+	# Enable 'labels:' for use in config file
 	if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
 		sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$_composeFile"
 	fi
@@ -146,7 +146,7 @@ generateComposeFile() {
 
 	# Enable adminer for specified project (using the stack's directory)
 	# e.g. use `abccom` for www/abc.com
-	if [[ "$adminer" = true ]] && [[ ! -z "$adminerVhost" ]]; then
+	if [[ "$adminer" = true ]] && [[ -n "$adminerVhost" ]]; then
 		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
 		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
 		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
@@ -163,19 +163,7 @@ generateComposeFile() {
 setupFiles() {
 	## Generate storage and log files, if necessary
 
-	## Logs
-	logDir="${traefikDir}/log"
-	if [[ ! -d "$logDir" ]]; then
-		mkdir "$logDir"
-	fi
-
-	log="${logDir}/error.log"
-	if [[ ! -f "$log" ]]; then
-		touch "$log"
-	fi
-
 	## LetsEncrypt storage
-	acme="${storageDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
 		sudo touch "$acme"
 		sudo chown "$serverUser":"$serverGroup" "$acme"
@@ -183,11 +171,10 @@ setupFiles() {
 	fi
 
 	## Environment variables file
-	envFile="${traefikDir}/.env"
-	if [[ -r "$envFile" ]]; then
+	if [[ -r "$env" ]]; then
 		# shellcheck disable=SC1091
-		# shellcheck source=/srv/rhdwp/traefik/.env
-		. "$envFile"
+		# shellcheck source=/srv/rhdwp/.env
+		. "$env"
 	fi
 
 	## Create sites directory
@@ -249,7 +236,7 @@ uninstallCron() {
 
 stopServer() {
 	## Stop the main traefik stack and clean up
-	(cd "$traefikDir" && docker-compose down --remove-orphans -v)
+	docker stack rm "$traefikLabel"
 	uninstallCron
 }
 
@@ -277,13 +264,7 @@ newSite() {
 startTraefik() {
 	## Pull freshest images and start the stack
 
-	(
-		cd "$traefikDir"
-
-		docker-compose pull -q
-		(docker-compose down -v --remove-orphans || true)
-		docker-compose up -d --remove-orphans
-	)
+	docker stack deploy -c "$composeFile" "$traefikLabel"
 }
 
 cleanUp() {
@@ -307,12 +288,16 @@ trap ctrlC INT
 ## Initialize variables
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
-storageDir=/mnt
-wwwDir="${rootDir}/www"
-composeTemplate="${traefikDir}/docker-compose-template.yml"
+env="${traefikDir}/.env"
+storageDir=/mnt/www
+wwwDir="${storageDir}/www"
+acme="${storageDir}/letsencrypt/acme.json"
+composeTemplate="${traefikDir}/traefik-template.yml"
+composeFile="${traefikDir}/traefik.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
+traefikLabel=traefik
 cronFile=/etc/cron.d/rhdwpTraefik
-network=web
+network=proxy
 devMode=false
 serverUser=www-data
 serverGroup=www-data
@@ -392,7 +377,7 @@ setupFiles
 
 ## Create web network
 if ! docker network ls | grep -q "$network"; then
-	docker network create "$network" || true
+	docker network create --driver=overlay "$network" || true
 fi
 
 ## Retrieve or prompt for environment variables, and export to .env

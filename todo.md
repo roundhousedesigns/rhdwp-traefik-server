@@ -1,6 +1,5 @@
 # RHDWP Traefik Server TODO
-ADD
-- remove certificate from ACME storage when removing site permanently
-
-FIX
-- error logging to file
+---
+- Rename glusterfs/ storage directory to `storage`
+- Change acme.json location from storage root
+- Automate starting/verifying of glusterfs 
