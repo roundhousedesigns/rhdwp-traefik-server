@@ -1,8 +1,6 @@
 .cache
 *.log
 www
-traefik/.env
-traefik/traefik.yml
+.env
+traefik.yml
 
-.wp-cli/*
-!.wp-cli/config.yml

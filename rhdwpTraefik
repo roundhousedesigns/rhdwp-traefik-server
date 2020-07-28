@@ -225,7 +225,7 @@ runSiteScripts() {
 installCron() {
 	## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
 	local cronMsg="## Make sure Traefik restarts on reboot"
-	local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
+	local cronJob="@reboot root ${traefikDir}/rhdwpTraefik"
 
 	sudo touch "$cronFile"
 	sudo chown root:root "$cronFile"
@@ -290,8 +290,7 @@ cleanUp() {
 trap ctrlC INT
 
 ## Initialize variables
-rootDir="$(dirname "$(realpath "$0")")"
-traefikDir="${rootDir}/traefik"
+traefikDir="$(dirname "$(realpath "$0")")"
 env="${traefikDir}/.env"
 storageDir=/mnt
 wwwDir="${storageDir}/www"
