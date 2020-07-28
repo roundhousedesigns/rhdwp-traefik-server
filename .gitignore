@@ -2,9 +2,7 @@
 *.log
 www
 traefik/.env
-traefik/acme.json
-traefik/traefik.toml
-traefik/docker-compose.yml
+traefik/traefik.yml
 
 .wp-cli/*
 !.wp-cli/config.yml
