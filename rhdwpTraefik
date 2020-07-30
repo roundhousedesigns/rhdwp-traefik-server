@@ -266,20 +266,13 @@ devMode=false
 serverUser=www-data
 serverGroup=www-data
 user=gaswirth
-adminer=
-certStaging=false
-buffering=false
 
 ## Get options
-while getopts "hbdfkm:n:s" opt; do
+while getopts "hdfkm:n:s" opt; do
 	case "$opt" in
 	h) # display help
 		help
 		exit 0
-		;;
-	b) # Large upload/buffer support
-		echo "Large upload/buffer support enabled."
-		buffering=true
 		;;
 	d) # Development mode
 		echo "Development mode enabled."
