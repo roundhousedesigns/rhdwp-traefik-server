@@ -24,7 +24,6 @@ help() {
 	echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
 	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name."
 	echo "  -n dirname    Create a new site stack"
-	echo "  -s            LetsEncrypt Staging server mode"
 	echo
 }
 
@@ -125,10 +124,12 @@ setupFiles() {
 	## Generate storage and log files, if necessary
 
 	## LetsEncrypt storage
-	if [[ ! -f "$acme" ]]; then
-		sudo touch "$acme"
-		sudo chown "$serverUser":"$serverGroup" "$acme"
-		sudo chmod 600 "$acme"
+	local _acme="${certDir}/acme.json"
+	sudo mkdir -p "$certDir"
+	if [[ ! -f "$_acme" ]]; then
+		sudo touch "$_acme"
+		sudo chown "$serverUser":"$serverGroup" "$_acme"
+		sudo chmod 600 "$_acme"
 	fi
 
 	## Environment variables file
@@ -140,7 +141,7 @@ setupFiles() {
 
 	## Create sites directory
 	if [[ ! -d "${wwwDir}" ]]; then
-		mkdir "${wwwDir}"
+		sudo mkdir "${wwwDir}"
 	fi
 
 	## Generates the .wp-cli/config.yml file
@@ -220,7 +221,7 @@ newSite() {
 
 	# Spin up the stack
 	(
-		git clone -b swarm-gluster git@github.com:gaswirth/rhdwp-docker "${sitePath}"
+		git clone -b nfs git@github.com:gaswirth/rhdwp-docker "${sitePath}"
 		cd "$sitePath" || exit
 		./rhdwpStack
 	)
@@ -253,10 +254,9 @@ trap ctrlC INT
 ## Initialize variables
 traefikDir="$(dirname "$(realpath "$0")")"
 env="${traefikDir}/.env"
-storageDir=/mnt
+storageDir=/mnt/storage/rhdwp
 wwwDir="${storageDir}/www"
-acme="${storageDir}/letsencrypt/acme.json"
-composeTemplate="${traefikDir}/traefik-template.yml"
+certDir="${storageDir}/letsencrypt"
 composeFile="${traefikDir}/traefik.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 traefikLabel=traefik
@@ -268,7 +268,7 @@ serverGroup=www-data
 user=gaswirth
 
 ## Get options
-while getopts "hdfkm:n:s" opt; do
+while getopts "hdfkm:n:" opt; do
 	case "$opt" in
 	h) # display help
 		help
@@ -294,7 +294,7 @@ while getopts "hdfkm:n:s" opt; do
 			echo "Error: The -m option requires a docker network prefix (example: abccom)."
 			exit 1
 		else
-			adminer=true
+			# adminer=true
 			adminerVhost=${OPTARG}
 			echo "Adminer enabled for ${adminerVhost}"
 		fi
@@ -309,10 +309,6 @@ while getopts "hdfkm:n:s" opt; do
 			exit 0
 		fi
 		;;
-	s) # LetsEncrypt staging mode
-		echo "Using LetsEncrypt staging server"
-		certStaging=true
-		;;
 	\?) # invalid option
 		echo "Invalid option: -$OPTARG" >&2
 		exit 1
@@ -325,11 +321,6 @@ sanityChecks
 
 ## Generate LetsEncrypt storage and log files
 setupFiles
-
-## Create web network
-# if ! docker network ls | grep -q "$network"; then
-# 	docker network create --driver=overlay "$network" || true
-# fi
 
 ## Retrieve or prompt for environment variables, and export to .env
 askEnv

@@ -2,5 +2,4 @@
 *.log
 www
 .env
-traefik.yml
-
+*.code-workspace
