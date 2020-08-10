@@ -18,7 +18,6 @@ help() {
 	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
 	echo
 	echo "  -h            Help and usage"
-	echo "  -b            Buffering expansion (large uploads)"
 	echo "  -d            Development mode (implies -a)"
 	echo "  -f            Freshen site stacks in the www/ directory"
 	echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
@@ -239,7 +238,7 @@ cleanUp() {
 	echo "Cleaning up..."
 
 	for f in "${tempPrefix}"*; do
-		if [[ -e "$f" ]]; then
+		if [[ -f "$f" ]]; then
 			sudo rm "$f"
 		fi
 	done
