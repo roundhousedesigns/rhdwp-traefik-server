@@ -2,13 +2,8 @@
 ---
 GENERAL
 --
-- Rename glusterfs/ storage directory to `storage`
-- Change acme.json location from storage root
-- Automate starting/verifying of glusterfs 
-- Cleanup: remove `/mnt/.wp-cli` and `/mnt/letsencrypt` directories on serverDown
-- what are `configs:` all about in docker-compose files?
-- learn about scaling swarm
+- CLOUDFLARE_API_KEY avail to all services thru secrets?
 
 BROKEN
 --
-- wp-cli not working
+- wp-cli not working on site stacks
