@@ -4,9 +4,9 @@ services:
   traefik:
     image: traefik:v2.2
     command:
+      # - --entrypoints.adminer.address=:9090
       - --entrypoints.http.address=:80
       - --entrypoints.https.address=:443
-      # - --entrypoints.adminer.address=:9090
       - --providers.docker=true
       - --providers.docker.swarmMode=true
       - --providers.docker.endpoint=unix:///var/run/docker.sock
@@ -43,7 +43,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /mnt/storage/rhdwp/letsencrypt/acme.json:/letsencrypt/acme.json
+      - /letsencrypt/acme.json:/letsencrypt/acme.json
       - ./conf.yml:/traefik_conf.yml
     deploy:
       replicas: 1
@@ -100,4 +100,3 @@ networks:
   #   driver: overlay
   #   name: %%project_label%%_internal
   ## RHDWP: Adminer end ##
-  
