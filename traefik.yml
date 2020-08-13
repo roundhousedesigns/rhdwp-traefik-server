@@ -43,12 +43,13 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /letsencrypt/acme.json:/letsencrypt/acme.json
+      - /srv/rhdwp/letsencrypt/acme.json:/letsencrypt/acme.json
       - ./conf.yml:/traefik_conf.yml
     deploy:
       replicas: 1
       placement:
-        constraints: [node.role == manager]
+        constraints:
+          - "node.role==manager"
       restart_policy:
         condition: any
         delay: 5s

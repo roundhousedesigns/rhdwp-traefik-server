@@ -2,4 +2,8 @@
 *.log
 www
 .env
+letsencrypt/
 *.code-workspace
+
+.wp-cli/*
+!.wp-cli/config.yml

@@ -123,8 +123,8 @@ setupFiles() {
 	## Generate storage and log files, if necessary
 
 	## LetsEncrypt storage
-	local _acme="${certDir}/acme.json"
-	sudo mkdir -p "$certDir"
+	local _acme="${certPath}/acme.json"
+	sudo mkdir -p "$certPath"
 	if [[ ! -f "$_acme" ]]; then
 		sudo touch "$_acme"
 		sudo chown "$serverUser":"$serverGroup" "$_acme"
@@ -139,8 +139,8 @@ setupFiles() {
 	fi
 
 	## Create sites directory
-	if [[ ! -d "${wwwDir}" ]]; then
-		sudo mkdir "${wwwDir}"
+	if [[ ! -d "${wwwPath}" ]]; then
+		sudo mkdir "${wwwPath}"
 	fi
 
 	## Generates the .wp-cli/config.yml file
@@ -154,7 +154,7 @@ setupFiles() {
 runSiteScripts() {
 	## Run rhdwpStack in each site directory
 
-	for d in "${wwwDir}"/*; do
+	for d in "${wwwPath}"/*; do
 		dir="${d##*/}"
 		_flags=" -q"
 		_branch=
@@ -210,7 +210,7 @@ newSite() {
 	# $1: the stack directory name (domain)
 
 	local dir="$1"
-	local sitePath="${wwwDir}/${dir}"
+	local sitePath="${wwwPath}/${dir}"
 
 	# Sanity check
 	if [[ -z "$dir" ]]; then
@@ -253,14 +253,14 @@ trap ctrlC INT
 ## Initialize variables
 traefikDir="$(dirname "$(realpath "$0")")"
 env="${traefikDir}/.env"
-storageDir=/mnt/storage/rhdwp
-wwwDir="${storageDir}/www"
-certDir="${storageDir}/letsencrypt"
+rhdwpPath=/srv/rhdwp
+wwwPath="${rhdwpPath}/www"
+certPath="${rhdwpPath}/letsencrypt"
 composeFile="${traefikDir}/traefik.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 traefikLabel=traefik
 cronFile=/etc/cron.d/rhdwpTraefik
-# wpcli="${storageDir}/.wp-cli"
+# wpcli="${rhdwpPath}/.wp-cli"
 devMode=false
 serverUser=www-data
 serverGroup=www-data
