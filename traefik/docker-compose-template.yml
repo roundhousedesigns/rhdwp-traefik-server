@@ -13,10 +13,12 @@ services:
       - --providers.docker.endpoint=unix:///var/run/docker.sock
       - --providers.docker.exposedbydefault=false
       - --providers.docker.watch=true
-      - --pilot.token=${TRAEFIK_PILOT_TOKEN}
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##
+      ## RHDWP: Pilot ##
+      # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
+      ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
