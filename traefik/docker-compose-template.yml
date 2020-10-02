@@ -44,9 +44,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
-    ## RHDWP: useLabels ##
-    # labels:
-    ## RHDWP: useLabels end ##
+    labels:
+      - "traefik.http.middlewares.http-cache.plugin.cache.path=/srv/rhdwp/traefik/cache"
     ## RHDWP: Buffering ##
     #   - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
     #   - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
