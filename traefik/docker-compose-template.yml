@@ -2,7 +2,7 @@ version: '3'
 
 services:
   traefik:
-    image: traefik:v2.2
+    image: traefik:v2.3
     container_name: traefik
     restart: unless-stopped
     command:
@@ -13,6 +13,7 @@ services:
       - --providers.docker.endpoint=unix:///var/run/docker.sock
       - --providers.docker.exposedbydefault=false
       - --providers.docker.watch=true
+      - --pilot.token=${TRAEFIK_PILOT_TOKEN}
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##

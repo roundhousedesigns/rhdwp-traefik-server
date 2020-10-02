@@ -71,6 +71,11 @@ gitRepoNeedsUpdate() {
 askEnv() {
 	## Verify .env values
 
+	# Traefik Pilot instance token
+	while [[ -z "$TRAEFIK_PILOT_TOKEN" ]]; do
+		read -r -p "Traefik Pilot instance token: " TRAEFIK_PILOT_TOKEN
+	done
+
 	# CloudFlare account email
 	while [[ -z "$CF_API_EMAIL" ]]; do
 		read -r -p "CloudFlare account email: " CF_API_EMAIL
@@ -115,6 +120,7 @@ writeEnv() {
 		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
 		DEV_SMTP_PASS=$DEV_SMTP_PASS
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
+		TRAEFIK_PILOT_TOKEN=$TRAEFIK_PILOT_TOKEN
 	EOT
 
 	sudo chown "$serverUser":"$serverGroup" "$envFile"
