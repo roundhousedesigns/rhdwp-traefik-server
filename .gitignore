@@ -6,5 +6,9 @@ traefik/acme.json
 traefik/traefik.toml
 traefik/docker-compose.yml
 
+
+traefik/cache/*
+!traefik/cache/.whatami
+
 .wp-cli/*
 !.wp-cli/config.yml
