@@ -18,6 +18,8 @@ services:
       ## RHDWP: API end ##
       ## RHDWP: Pilot ##
       # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
+      # - --experimental.plugins.cache.modulename=github.com/traefik/plugin-simplecache
+      # - --experimental.plugins.cache.version=v0.2.1
       ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=acme.json
@@ -31,7 +33,7 @@ services:
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
       ## Logging
-      - --log.level=error
+      - --log.level=debug
       # - --log.filePath=./log/error.log
     security_opt:
       - no-new-privileges:true
@@ -44,8 +46,12 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
-    labels:
-      - "traefik.http.middlewares.http-cache.plugin.cache.path=/srv/rhdwp/traefik/cache"
+    ## RHDWP: useLabels ##
+    # labels:
+    ## RHDWP: useLabels end ##
+    ## RHDWP: Plugins ##
+      - "traefik.http.middlewares.traefik_cache.plugin.cache.path=/srv/rhdwp/traefik/cache"
+    ## RHDWP: Plugins end ##
     ## RHDWP: Buffering ##
     #   - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
     #   - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"

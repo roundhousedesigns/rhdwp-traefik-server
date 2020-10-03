@@ -136,7 +136,7 @@ generateComposeFile() {
 	cat "$composeTemplate" >"$_composeFile"
 
 	# Enable 'labels:' for use in docker-compose
-	if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
+	if [[ "$api" = true ]] || [[ "$buffering" = true ]] || [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
 		sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$_composeFile"
 	fi
 
