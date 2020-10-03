@@ -18,8 +18,8 @@ services:
       ## RHDWP: API end ##
       ## RHDWP: Pilot ##
       # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
-      # - --experimental.plugins.cache.modulename=github.com/traefik/plugin-simplecache
-      # - --experimental.plugins.cache.version=v0.2.1
+      # - --experimental.plugins.plugin-simplecache.modulename=github.com/traefik/plugin-simplecache
+      # - --experimental.plugins.plugin-simplecache.version=v0.2.1
       ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=acme.json
@@ -46,11 +46,11 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
-    ## RHDWP: useLabels ##
-    # labels:
+    ## RHDWP: useLabels (inactive tag) ##
+    labels:
     ## RHDWP: useLabels end ##
     ## RHDWP: Plugins ##
-      # - "traefik.http.middlewares.traefik_cache.plugin.cache.path=/srv/rhdwp/traefik/cache"
+      - "traefik.http.middlewares.traefik_cache.plugin.plugin-simplecache.path=/srv/rhdwp/traefik/cache"
     ## RHDWP: Plugins end ##
     ## RHDWP: Buffering ##
     #   - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
