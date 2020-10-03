@@ -50,7 +50,7 @@ services:
     # labels:
     ## RHDWP: useLabels end ##
     ## RHDWP: Plugins ##
-      - "traefik.http.middlewares.traefik_cache.plugin.cache.path=/srv/rhdwp/traefik/cache"
+      # - "traefik.http.middlewares.traefik_cache.plugin.cache.path=/srv/rhdwp/traefik/cache"
     ## RHDWP: Plugins end ##
     ## RHDWP: Buffering ##
     #   - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
