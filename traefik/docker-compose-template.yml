@@ -8,6 +8,7 @@ services:
     command:
       - --entrypoints.http.address=:80
       - --entrypoints.https.address=:443
+      - --entrypoints.redis.address=:6379
       - --entrypoints.adminer.address=:8080
       - --providers.docker=true
       - --providers.docker.endpoint=unix:///var/run/docker.sock
