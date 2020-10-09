@@ -17,3 +17,4 @@ rhdwp-traefik-server
 4/20/2020		Patches now using Ansible, so gone from the script (wooooot); Added buffering/large upload capability to master.
 4/21/2020		Code prettification and modernized syntax; cleanup; trap ctrl+c gracefully
 10/3/2020		Added retry middleware	
+10/7/2020		Added memcached option
