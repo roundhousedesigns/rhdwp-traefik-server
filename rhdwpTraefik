@@ -62,7 +62,7 @@ gitRepoNeedsUpdate() {
 	git fetch
 	_headHash=$(git rev-parse HEAD)
 	#shellcheck disable=SC1083
-	_upstreamHash=$(git rev-parse master@{upstream})
+	_upstreamHash=$(git rev-parse main@{upstream})
 
 	# Return the result
 	[[ "$_headHash" != "$_upstreamHash" ]]
@@ -228,9 +228,9 @@ runSiteScripts() {
 				# Update and rebuild
 				echo "UPDATE $dir"
 
-				# Check for master branch
-				if [[ "$_branch" != "master" ]]; then
-					git checkout master
+				# Check for main branch
+				if [[ "$_branch" != "main" ]]; then
+					git checkout main
 				fi
 
 				git pull -q
