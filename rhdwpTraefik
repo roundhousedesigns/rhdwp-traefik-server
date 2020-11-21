@@ -281,8 +281,7 @@ newSite() {
 	# Spin up the stack
 	(
 		git clone git@github.com:gaswirth/rhdwp-docker "${sitePath}"
-		cd "$sitePath" || exit
-		./rhdwpStack
+		mkdir -p "$sitePath"/database/{data,initdb.d}
 	)
 }
 
