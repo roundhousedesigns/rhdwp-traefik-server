@@ -128,44 +128,46 @@ writeEnv() {
 	sudo chmod 660 "$envFile"
 }
 
-enableComposeSection() {
+enableComposeSections() {
 	## Enable a section in the composefile
-	local sectionLabel="$1"
-	sed -i "/## RHDWP: ${sectionLabel} ##/,/## RHDWP: ${sectionLabel} end ##/s/[^#]# / /g" "$_composeFile"
+	local sections=("$@")
+
+	for label in "${sections[@]}"; do
+		sed -i "/## RHDWP: ${label} ##/,/## RHDWP: ${label} end ##/s/[^#]# / /g" "$_composeFile"
+	done
 }
 
 generateComposeFile() {
 	## Create/edit docker-compose.yml
+	local sections=()
 	local composeFile="${traefikDir}/docker-compose.yml"
 	local _composeFile
 	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
 
 	cat "$composeTemplate" >"$_composeFile"
 
-	# Enable buffer expansion (large uploads)
+	# Check sections
 	if [[ "$buffering" = true ]]; then
-		enableComposeSection Buffering
+		sections+=('Buffering')
 	fi
 
-	# Enable the Dashboard
 	if [[ "$api" = true ]]; then
-		enableComposeSection API
+		sections+=('API')
 	fi
 	
-	# Enable the Dashboard
 	if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
-		enableComposeSection Pilot
+		sections+=('Pilot')
 	fi
 
-	# Enable Portainer
 	if [[ "$portainer" = true ]]; then
-		enableComposeSection Portainer
+		sections+=('Portainer')
 	fi
 
-	# LetsEncrypt staging certificate
 	if [[ "$certStaging" = true ]]; then
-		enableComposeSection 'Cert staging'
+		sections+=('Cert staging')
 	fi
+
+	enableComposeSections "${sections[@]}"
 
 	# Enable adminer for specified project (using the stack's directory)
 	# e.g. use `abccom` for www/abc.com
