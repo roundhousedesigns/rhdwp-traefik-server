@@ -114,7 +114,7 @@ writeEnv() {
 	## Write to .env and lock it down
 
 	cat <<-EOT >"$envFile"
-		FQDN=$(hostname -f)
+		FQDN=$FQDN
 		CF_API_EMAIL=$CF_API_EMAIL
 		CF_API_KEY=$CF_API_KEY
 		MG_API_KEY=$MG_API_KEY
@@ -268,6 +268,35 @@ uninstallCron() {
 	sudo rm -f "$cronFile"
 }
 
+checkPortainerDNS() {
+	## Check CloudFlare for "portainer" and "edge" CNAME entries
+	local cnames=("portainer" "edge")
+	local tld
+	tld=$(echo "$FQDN" | grep -o '[^.]*\.[^.]*$')
+
+	# GET ZONE ID
+	cf_zone=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${tld}&status=active&match=all" \
+		-H "X-Auth-Email: ${CF_API_EMAIL}" \
+		-H "X-Auth-Key: ${CF_API_KEY}" \
+		-H "Content-Type: application/json")
+
+	cf_zone_id=$(echo "$cf_zone" | jq -r ".result[0].id")
+
+	# CREATE DNS ENTRIES
+	# Domain verification records
+	for record in "${cnames[@]}"; do
+		(
+			cfZoneApiUrl="https://api.cloudflare.com/client/v4/zones/${cf_zone_id}/dns_records"
+			# Skip adding Mailgun CNAME (tracking) entry to CloudFlare
+			curl -s -X POST "$cfZoneApiUrl" \
+				-H "X-Auth-Email: ${CF_API_EMAIL}" \
+				-H "X-Auth-Key: ${CF_API_KEY}" \
+				-H "Content-Type: application/json" \
+				--data '{"type":"CNAME","name":'\""${record}.$(hostname)\""',"content":'\""${FQDN}\""',"ttl":1,"proxied":false}'
+		)
+	done
+}
+
 stopServer() {
 	## Stop the main traefik stack and clean up
 	(cd "$traefikDir" && docker-compose down --remove-orphans -v)
@@ -324,6 +353,7 @@ cleanUp() {
 trap ctrlC INT
 
 ## Initialize variables
+FQDN=$(hostname -f)
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 wwwDir="${rootDir}/www"
@@ -340,6 +370,10 @@ portainer=
 adminer=
 certStaging=false
 buffering=false
+
+## Before we begin...
+sanityChecks
+setupFiles
 
 ## Get options
 while getopts "habdfkm:n:ps" opt; do
@@ -393,7 +427,20 @@ while getopts "habdfkm:n:ps" opt; do
 		fi
 		;;
 	p) # Enable Portainer
-		portainer=true
+		if [[ -z "$CF_API_KEY" ]] || [[ -z "$CF_API_EMAIL" ]]; then
+			# Notify of the missing values, and skip.
+			if [[ -z "$CF_API_KEY" ]]; then
+				echo "CloudFlare API KEY not found. Skipping Portainer..."
+			fi
+			if [[ -z "$CF_API_EMAIL" ]]; then
+				echo "CloudFlare API Email not found. Skipping Portainer..."
+			fi
+
+			portainer=false
+		else
+			portainer=true
+			checkPortainerDNS
+		fi
 		;;
 	s) # LetsEncrypt staging mode
 		echo "Using LetsEncrypt staging server"
@@ -405,12 +452,6 @@ while getopts "habdfkm:n:ps" opt; do
 		;;
 	esac
 done
-
-## Before we begin...
-sanityChecks
-
-## Generate LetsEncrypt storage and log files
-setupFiles
 
 ## Create web network
 if ! docker network ls | grep -q "$network"; then
