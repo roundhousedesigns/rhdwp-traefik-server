@@ -31,7 +31,7 @@ services:
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
       ## Logging
-      - --log.level=error
+      - --log.level=ERROR
       # - --log.filePath=./log/error.log
     security_opt:
       - no-new-privileges:true
@@ -44,10 +44,12 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
-    ## RHDWP: useLabels (inactive) ##
     labels:
-    ## RHDWP: useLabels end (inactive) ##
       - "traefik.http.middlewares.service-retry.retry.attempts=4"
+      # - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      # - "traefik.http.routers.http-catchall.entrypoints=http"
+      # - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      # - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
     ## RHDWP: Buffering ##
     #   - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
     #   - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
@@ -87,6 +89,33 @@ services:
   #     - "traefik.http.routers.adminer.entrypoints=adminer"
   #     - "traefik.http.routers.adminer.rule=Host(`${FQDN}`)"
   ## RHDWP: Adminer end ##
+
+  ## RHDWP: Portainer ##
+  # portainer:
+  #   image: portainer/portainer-ce:2.0.0
+  #   command: -H unix:///var/run/docker.sock
+  #   restart: always
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./portainer:/data
+  #   networks:
+  #    - web
+  #   labels:
+  #     ## Frontend
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.frontend.rule=Host(`portainer.${FQDN}`)"
+  #     - "traefik.http.routers.frontend.entrypoints=https"
+  #     - "traefik.http.services.frontend.loadbalancer.server.port=9000"
+  #     - "traefik.http.routers.frontend.service=frontend"
+  #     - "traefik.http.routers.frontend.tls.certresolver=http"
+
+  #     ## Edge
+  #     - "traefik.http.routers.edge.rule=Host(`edge.${FQDN}`)"
+  #     - "traefik.http.routers.edge.entrypoints=https"
+  #     - "traefik.http.services.edge.loadbalancer.server.port=8000"
+  #     - "traefik.http.routers.edge.service=edge"
+  #     - "traefik.http.routers.edge.tls.certresolver=http"
+  ## RHDWP: Portainer end ##
 
 networks:
   web:

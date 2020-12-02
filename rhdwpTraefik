@@ -12,19 +12,20 @@
 
 help() {
 	## Display help
-	echo "Generates a docker-compose.yml configuration for the RHDWP stack."
+	echo 'Generates a docker-compose.yml configuration for the RHDWP stack.'
 	echo
-	echo "Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]"
+	echo 'Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]'
 	echo
-	echo "  -h            Help and usage"
-	echo "  -a            Enable dashboard"
-	echo "  -b            Buffering expansion (large uploads)"
-	echo "  -d            Development mode (implies -a)"
-	echo "  -f            Freshen site stacks in the www/ directory"
-	echo "  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron"
-	echo "  -m dirname    Enable MySQL adminer dashboard for a project using the directory name."
-	echo "  -n dirname    Create a new site stack"
-	echo "  -s            LetsEncrypt Staging server mode"
+	echo '  -h            Help and usage'
+	echo '  -a            Enable dashboard'
+	echo '  -b            Buffering expansion (large uploads)'
+	echo '  -d            Development mode (implies -a)'
+	echo '  -f            Freshen site stacks in the www/ directory'
+	echo '  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron'
+	echo '  -m dirname    Enable MySQL adminer dashboard for a project using the directory name.'
+	echo '  -n dirname    Create a new site stack'
+	echo '  -p            Enable Portainer at "https://portainer.HOST"'
+	echo '  -s            LetsEncrypt Staging server mode'
 	echo
 }
 
@@ -127,6 +128,12 @@ writeEnv() {
 	sudo chmod 660 "$envFile"
 }
 
+enableComposeSection() {
+	## Enable a section in the composefile
+	local sectionLabel="$1"
+	sed -i "/## RHDWP: ${sectionLabel} ##/,/## RHDWP: ${sectionLabel} end ##/s/[^#]# / /g" "$_composeFile"
+}
+
 generateComposeFile() {
 	## Create/edit docker-compose.yml
 	local composeFile="${traefikDir}/docker-compose.yml"
@@ -135,25 +142,29 @@ generateComposeFile() {
 
 	cat "$composeTemplate" >"$_composeFile"
 
-	# Enable 'labels:' for use in docker-compose
-	# (inactive)
-	# if [[ "$api" = true ]] || [[ "$buffering" = true ]]; then
-	#	sed -i '/## RHDWP: useLabels ##/,/## RHDWP: useLabels end ##/s/[^#]# / /g' "$_composeFile"
-	# fi
-
 	# Enable buffer expansion (large uploads)
 	if [[ "$buffering" = true ]]; then
-		sed -i '/## RHDWP: Buffering ##/,/## RHDWP: Buffering end ##/s/[^#]# / /g' "$_composeFile"
+		enableComposeSection Buffering
 	fi
 
 	# Enable the Dashboard
 	if [[ "$api" = true ]]; then
-		sed -i '/## RHDWP: API ##/,/## RHDWP: API end ##/s/[^#]# / /g' "$_composeFile"
+		enableComposeSection API
 	fi
 	
 	# Enable the Dashboard
 	if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
-		sed -i '/## RHDWP: Pilot ##/,/## RHDWP: Pilot end ##/s/[^#]# / /g' "$_composeFile"
+		enableComposeSection Pilot
+	fi
+
+	# Enable Portainer
+	if [[ "$portainer" = true ]]; then
+		enableComposeSection Portainer
+	fi
+
+	# LetsEncrypt staging certificate
+	if [[ "$certStaging" = true ]]; then
+		enableComposeSection 'Cert staging'
 	fi
 
 	# Enable adminer for specified project (using the stack's directory)
@@ -162,10 +173,6 @@ generateComposeFile() {
 		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
 		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
 		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
-	fi
-
-	if [[ "$certStaging" = true ]]; then
-		sed -i '/## RHDWP: Cert staging ##/,/## RHDWP: Cert staging end ##/s/[^#]# / /g' "$_composeFile"
 	fi
 
 	mv "$_composeFile" "$composeFile"
@@ -268,7 +275,6 @@ stopServer() {
 newSite() {
 	## Create a new site stack in www/
 	# $1: the stack directory name (domain)
-
 	local dir="$1"
 	local sitePath="${wwwDir}/${dir}"
 
@@ -328,12 +334,13 @@ serverUser=www-data
 serverGroup=www-data
 user=gaswirth
 api=
+portainer=
 adminer=
 certStaging=false
 buffering=false
 
 ## Get options
-while getopts "habdfkm:n:s" opt; do
+while getopts "habdfkm:n:ps" opt; do
 	case "$opt" in
 	h) # display help
 		help
@@ -382,6 +389,9 @@ while getopts "habdfkm:n:s" opt; do
 			newSite "${OPTARG}"
 			exit 0
 		fi
+		;;
+	p) # Enable Portainer
+		portainer=true
 		;;
 	s) # LetsEncrypt staging mode
 		echo "Using LetsEncrypt staging server"
