@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   traefik:
@@ -13,6 +13,7 @@ services:
       - --providers.docker.endpoint=unix:///var/run/docker.sock
       - --providers.docker.exposedbydefault=false
       - --providers.docker.watch=true
+      - --providers.file.filename=/configs/traefik_tls.yml
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##
@@ -28,6 +29,7 @@ services:
       - --certificatesresolvers.http.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.http.acme.storage=acme.json
       - --certificatesresolvers.http.acme.httpchallenge.entrypoint=http
+      - --certificatesresolvers.cloudflare.acme.keyType
       ## RHDWP: Cert staging ##
       # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
@@ -46,8 +48,9 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
+      - ./tls.yml:/configs/traefik_tls.yml
     labels:
-      - 'traefik.http.middlewares.service-retry.retry.attempts=4'
+      - "traefik.http.middlewares.service-retry.retry.attempts=4"
       # - 'traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)'
       # - 'traefik.http.routers.http-catchall.entrypoints=http'
       # - 'traefik.http.routers.http-catchall.middlewares=redirect-to-https'

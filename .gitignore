@@ -1,5 +1,6 @@
 .cache
 *.log
+archive/
 www/
 traefik/.env
 traefik/acme.json
