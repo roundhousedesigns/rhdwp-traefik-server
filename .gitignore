@@ -1,14 +1,17 @@
-.vscode
-.cache
+/*
+!.gitignore
+!README.md
 
-*.log
-archive/
-www/*
-traefik/.env
-traefik/acme.json
-traefik/traefik.toml
-traefik/docker-compose.yml
-traefik/portainer/*
+!lib/
+!traefik/*
 
-.wp-cli/*
+#*.log
+#archive/
+#www/*
+#traefik/.env
+#traefik/acme.json
+#traefik/traefik.toml
+#traefik/docker-compose.yml
+#traefik/portainer/*
+
 !.wp-cli/config.yml
