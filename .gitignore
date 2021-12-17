@@ -5,10 +5,11 @@
 archive/
 www/*
 traefik/.env
-traefik/acme.json
 traefik/traefik.toml
 traefik/docker-compose.yml
 traefik/portainer/*
+traefik/certs
+acme.json
 
 .wp-cli/*
 !.wp-cli/config.yml
