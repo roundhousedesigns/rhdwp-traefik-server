@@ -196,12 +196,12 @@ setupFiles() {
 	fi
 
 	## LetsEncrypt storage
-	acme="${traefikDir}/acme.json"
-	if [[ ! -f "$acme" ]]; then
-		sudo touch "$acme"
-		sudo chown "$serverUser":"$serverGroup" "$acme"
-		sudo chmod 600 "$acme"
-	fi
+	#acme="${traefikDir}/acme.json"
+	#if [[ ! -f "$acme" ]]; then
+	#	sudo touch "$acme"
+	#	sudo chown "$serverUser":"$serverGroup" "$acme"
+	#	sudo chmod 600 "$acme"
+	#fi
 
 	## Environment variables file
 	envFile="${traefikDir}/.env"
