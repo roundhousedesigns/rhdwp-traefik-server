@@ -5,7 +5,6 @@
 archive/
 www/*
 traefik/.env
-traefik/traefik.toml
 traefik/docker-compose.yml
 traefik/portainer/*
 traefik/certs
