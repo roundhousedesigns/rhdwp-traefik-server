@@ -36,7 +36,7 @@ services:
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
       ## Logging
-      - --log.level=ERROR
+      - --log.level=DEBUG
       # - --log.filePath=./log/error.log
     security_opt:
       - no-new-privileges:true
@@ -48,9 +48,9 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./acme.json:/acme.json
       - ./configs:/configs
       - ./certs:/certs
+      - ./acme.json:/acme.json
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_API_KEY=${CF_API_KEY}
@@ -89,10 +89,13 @@ services:
       apk add jq;
       while ! [ -e /acme.json ] || ! [ $$(jq ".http | .Certificates | length" /acme.json) != 0 ];
       do sleep 1;
-      done && traefik-certs-dumper file --version v2 --watch --source /acme.json --dest /certs'
+      done
+      && traefik-certs-dumper file --version v2 --watch
+              --source /acme.json --dest /certs'
+    
     volumes:
-      - ./acme.json:/acme.json
       - ./certs:/certs
+      - ./acme.json:/acme.json
 
   whoami:
     image: traefik/whoami:latest

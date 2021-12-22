@@ -196,7 +196,7 @@ setupFiles() {
 	fi
 
 	## LetsEncrypt storage
-	acme="${traefikDir}/configs/acme.json"
+	acme="${traefikDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
 		sudo touch "$acme"
 		sudo chown "$serverUser":"$serverGroup" "$acme"
