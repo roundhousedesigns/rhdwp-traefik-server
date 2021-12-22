@@ -85,14 +85,11 @@ services:
 
   traefik-certs-dumper:
     image: ldez/traefik-certs-dumper:v2.7.4
-    entrypoint: sh -c '
+    entrypoint: sh -c ';
       apk add jq;
-      while ! [ -e /acme.json ] || ! [ $$(jq ".http | .Certificates | length" /acme.json) != 0 ];
+      while ! [[ -e /acme.json ]] || [[ -z "$$(jq ".[] | .Certificates | length" /acme.json)" ]];
       do sleep 1;
-      done
-      && traefik-certs-dumper file --version v2 --watch
-              --source /acme.json --dest /certs'
-    
+      done && traefik-certs-dumper file --version v2 --watch --source /acme.json --dest /certs'
     volumes:
       - ./certs:/certs
       - ./acme.json:/acme.json
