@@ -19,3 +19,4 @@ rhdwp-traefik-server
 10/3/2020		Added retry middleware	
 10/7/2020		Added memcached option
 12/1/2020		Added Portainer option; refactored compose section uncommenting
+12/21/2021		Default host cert generation for use with Traefik, using traefik/whoami and traefik-cert-dump
