@@ -37,7 +37,6 @@ services:
       ## RHDWP: Cert staging end ##
       ## Logging
       - --log.level=ERROR
-      # - --log.filePath=./log/error.log
     security_opt:
       - no-new-privileges:true
     networks:

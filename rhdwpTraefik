@@ -182,19 +182,6 @@ generateComposeFile() {
 }
 
 setupFiles() {
-	## Generate storage and log files, if necessary
-
-	## Logs
-	logDir="${traefikDir}/log"
-	if [[ ! -d "$logDir" ]]; then
-		mkdir "$logDir"
-	fi
-
-	log="${logDir}/error.log"
-	if [[ ! -f "$log" ]]; then
-		touch "$log"
-	fi
-
 	## LetsEncrypt storage
 	acme="${traefikDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
