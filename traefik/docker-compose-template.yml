@@ -93,8 +93,8 @@ services:
       - ./certs:/certs
       - ./acme.json:/acme.json
 
-  whoami:
-    image: traefik/whoami:latest
+  tinyhost:
+    image: gaswirth/tinyhost:latest
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"

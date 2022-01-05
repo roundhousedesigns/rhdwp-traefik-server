@@ -15,8 +15,8 @@ tls:
       minVersion: VersionTLS13
     sniStrict: true
 
-  stores:
-    default:
-      defaultCertificate:
-        certFile: /certs/certs/{{ env "FQDN" }}.crt
-        keyFile: /certs/private/{{ env "FQDN" }}.key
+stores:
+  default:
+    defaultCertificate:
+      certFile: /certs/certs/{{ env "FQDN" }}.crt
+      keyFile: /certs/private/{{ env "FQDN" }}.key
