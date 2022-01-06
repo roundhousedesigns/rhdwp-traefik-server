@@ -436,7 +436,9 @@ while getopts "habdfkm:n:ps" opt; do
     fi
     ;;
   s) # LetsEncrypt staging mode
-    echo "Using LetsEncrypt staging server"
+    echo
+    echo "*** LetsEncrypt STAGING ***"
+    echo
     certStaging=true
     ;;
   \?) # invalid option
