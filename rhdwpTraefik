@@ -16,22 +16,24 @@
 ##########
 
 help() {
-  ## Display help
-  echo 'Generates a docker-compose.yml configuration for the RHDWP stack.'
-  echo
-  echo 'Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]'
-  echo
-  echo '  -h            Help and usage'
-  echo '  -a            Enable dashboard'
-  echo '  -b            Buffering expansion (large uploads)'
-  echo '  -d            Development mode (implies -a)'
-  echo '  -f            Freshen site stacks in the www/ directory'
-  echo '  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron'
-  echo '  -m dirname    Enable MySQL adminer dashboard for a project using the directory name.'
-  echo '  -n dirname    Create a new site stack'
-  echo '  -p            Enable Portainer at "https://portainer.HOST"'
-  echo '  -s            LetsEncrypt Staging server mode'
-  echo
+	## Display help
+	echo 'Generates a docker-compose.yml configuration for the RHDWP stack.'
+	echo
+	echo 'Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]'
+	echo
+	echo '  -h            Help and usage'
+	echo '  -a            Enable dashboard'
+	echo '  -b            Buffering expansion (large uploads)'
+	echo '  -c            Clear all logs'
+	echo '  -d            Development mode (implies -a)'
+	echo '  -f            Freshen site stacks in the www/ directory'
+	echo '  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron'
+	echo '  -l loglevel   Sets the log level'
+	echo '  -m dirname    Enable MySQL adminer dashboard for a project using the directory name.'
+	echo '  -n dirname    Create a new site stack'
+	echo '  -p            Enable Portainer at "https://portainer.HOST"'
+	echo '  -s            LetsEncrypt Staging server mode'
+	echo
 }
 
 ###############
@@ -39,86 +41,103 @@ help() {
 ###############
 
 sanityChecks() {
-  ## Check requried tools
+	## Check requried tools
 
-  ## Sudo
-  echo "Checking sudo freshness..."
-  sudo echo "Done."
+	## Sudo
+	echo "Checking sudo freshness..."
+	sudo echo "Done."
 
-  deps=(docker docker-compose)
-  for i in "${deps[@]}"; do
-    if ! hash "$i" 2>/dev/null; then
-      printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
-      exit 1
-    fi
-  done
+	deps=(docker docker-compose)
+	for i in "${deps[@]}"; do
+		if ! hash "$i" 2>/dev/null; then
+			printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
+			exit 1
+		fi
+	done
 }
 
 ctrlC() {
-  ## Peace out gracefully on interrupt
+	## Peace out gracefully on interrupt
 
-  echo "** INTERRUPTING COW MOO **"
-  cleanUp
-  exit
+	echo "** INTERRUPTING COW MOO **"
+	cleanUp
+	exit
 }
 
 gitRepoNeedsUpdate() {
-  ## Checks if a repository is out of date
+	## Checks if a repository is out of date
 
-  git fetch
-  _headHash=$(git rev-parse HEAD)
-  #shellcheck disable=SC1083
-  _upstreamHash=$(git rev-parse main@{upstream})
+	git fetch
+	_headHash=$(git rev-parse HEAD)
+	#shellcheck disable=SC1083
+	_upstreamHash=$(git rev-parse main@{upstream})
 
-  # Return the result
-  [[ "$_headHash" != "$_upstreamHash" ]]
+	# Return the result
+	[[ "$_headHash" != "$_upstreamHash" ]]
+}
+
+logs() {
+	## Set up log files
+	
+	# Clear first, if requested
+	if [[ "$clearLogs" = true ]]; then
+		sudo rm -rf -- "${logDir}"/*
+	fi
+
+	# Rotate logs and create a new file
+	if [[ -f "$logFile" ]]; then
+		sudo cp "$logFile" "$logFile.$(date +%F_%R)"
+		sudo truncate -s 0 "$logFile"
+	else
+		touch "$logFile"
+	fi
 }
 
 askEnv() {
-  ## Verify .env values
+	## Verify .env values
 
-  # Traefik Pilot instance token
-  if [[ -z "$TRAEFIK_PILOT_TOKEN" ]]; then
-    read -r -p "Traefik Pilot instance token: " TRAEFIK_PILOT_TOKEN
-  fi
+	# Traefik Pilot instance token
+	if [[ -z "$TRAEFIK_PILOT_TOKEN" ]]; then
+		read -r -p "Traefik Pilot instance token: " TRAEFIK_PILOT_TOKEN
+	fi
 
-  # CloudFlare account email
-  while [[ -z "$CF_API_EMAIL" ]]; do
-    read -r -p "CloudFlare account email: " CF_API_EMAIL
-  done
+	# CloudFlare account email
+	while [[ -z "$CF_API_EMAIL" ]]; do
+		read -r -p "CloudFlare account email: " CF_API_EMAIL
+	done
 
-  # CloudFlare API Key
-  while [[ -z "$CF_API_KEY" ]]; do
-    read -r -p "CloudFlare API Key: " CF_API_KEY
-  done
+	# CloudFlare API Key
+	while [[ -z "$CF_API_KEY" ]]; do
+		read -r -p "CloudFlare API Key: " CF_API_KEY
+	done
 
-  # Mailgun API Key
-  while [[ -z "$MG_API_KEY" ]]; do
-    read -r -p "MailGun API Key: " MG_API_KEY
-  done
+	# Mailgun API Key
+	while [[ -z "$MG_API_KEY" ]]; do
+		read -r -p "MailGun API Key: " MG_API_KEY
+	done
 
-  if [[ "$devMode" = true ]]; then
-    # SMTP login for dev mode
-    while [[ -z "$DEV_SMTP_LOGIN" ]]; do
-      read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
-    done
+	if [[ "$devMode" = true ]]; then
+		# SMTP login for dev mode
+		while [[ -z "$DEV_SMTP_LOGIN" ]]; do
+			read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
+		done
 
-    # Mailgun API Key
-    while [[ -z "$DEV_SMTP_PASS" ]]; do
-      read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
-    done
+		# Mailgun API Key
+		while [[ -z "$DEV_SMTP_PASS" ]]; do
+			read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
+		done
 
-    # SMTP login for dev mode
-    while [[ -z "$DEV_SMTP_FROM" ]]; do
-      read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
-    done
-  fi
+		# SMTP login for dev mode
+		while [[ -z "$DEV_SMTP_FROM" ]]; do
+			read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
+		done
+	fi
 }
 
 writeEnv() {
-  ## Write to .env and lock it down
+	## Write to .env and lock it down
 
-  cat <<-EOT >"$envFile"
+	cat <<-EOT >"$envFile"
 		FQDN=$FQDN
 		CF_API_EMAIL=$CF_API_EMAIL
 		CF_API_KEY=$CF_API_KEY
@@ -127,216 +146,218 @@ writeEnv() {
 		DEV_SMTP_PASS=$DEV_SMTP_PASS
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
 		TRAEFIK_PILOT_TOKEN=$TRAEFIK_PILOT_TOKEN
+		LOGLEVEL=$LOGLEVEL
 	EOT
 
-  sudo chown "$serverUser":"$serverGroup" "$envFile"
-  sudo chmod 660 "$envFile"
+	sudo chown "$serverUser":"$serverGroup" "$envFile"
+	sudo chmod 660 "$envFile"
 }
 
 enableTemplateBlocks() {
-  ## Enable a section in the composefile
-  local sections=("$@")
+	## Enable a section in the composefile
+	local sections=("$@")
 
-  for label in "${sections[@]}"; do
-    sed -i "/## RHDWP: ${label} ##/,/## RHDWP: ${label} end ##/s/[^#]# / /g" "$_composeFile"
-  done
+	for label in "${sections[@]}"; do
+		sed -i "/## RHDWP: ${label} ##/,/## RHDWP: ${label} end ##/s/[^#]# / /g" "$_composeFile"
+	done
 }
 
 generateComposeFile() {
-  ## Create/edit docker-compose.yml
-  local sections=()
-  local composeFile="${traefikDir}/docker-compose.yml"
-  local _composeFile
-  _composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
+	## Create/edit docker-compose.yml
+	local sections=()
+	local composeFile="${traefikDir}/docker-compose.yml"
+	local _composeFile
+	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
 
-  cat "$composeTemplate" >"$_composeFile"
+	cat "$composeTemplate" >"$_composeFile"
 
-  # Conditionally add sections
-  if [[ "$buffering" = true ]]; then
-    sections+=('Buffering')
-  fi
+	# Conditionally add sections
+	if [[ "$buffering" = true ]]; then
+		sections+=('Buffering')
+	fi
 
-  if [[ "$api" = true ]]; then
-    sections+=('API')
-  fi
+	if [[ "$api" = true ]]; then
+		sections+=('API')
+	fi
 
-  if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
-    sections+=('Pilot')
-  fi
+	if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
+		sections+=('Pilot')
+	fi
 
-  if [[ "$portainer" = true ]]; then
-    sections+=('Portainer')
-  fi
+	if [[ "$portainer" = true ]]; then
+		sections+=('Portainer')
+	fi
 
-  if [[ "$certStaging" = true ]]; then
-    sections+=('Cert staging')
-  fi
+	if [[ "$certStaging" = true ]]; then
+		sections+=('Cert staging')
+	fi
 
-  enableTemplateBlocks "${sections[@]}"
+	enableTemplateBlocks "${sections[@]}"
 
-  # Enable adminer for specified project (using the stack's directory)
-  # e.g. use `abccom` for www/abc.com
-  # TODO Can this be combined into enableSectionBlocks()?
-  if [[ "$adminer" = true ]] && [[ -n "$adminerVhost" ]]; then
-    adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
-    sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
-    sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
-  fi
+	# Enable adminer for specified project (using the stack's directory)
+	# e.g. use `abccom` for www/abc.com
+	# TODO Can this be combined into enableSectionBlocks()?
+	if [[ "$adminer" = true ]] && [[ -n "$adminerVhost" ]]; then
+		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
+		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
+		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
+	fi
 
-  mv "$_composeFile" "$composeFile"
-  chown "$user":"$user" "$composeFile"
+	mv "$_composeFile" "$composeFile"
+	chown "$user":"$user" "$composeFile"
 }
 
 setupFiles() {
-  ## LetsEncrypt storage
-  acme="${traefikDir}/acme.json"
-  if [[ ! -f "$acme" ]]; then
-    sudo touch "$acme"
-    sudo chown "$serverUser":"$serverGroup" "$acme"
-    sudo chmod 600 "$acme"
-  fi
+	## LetsEncrypt storage
+	acme="${traefikDir}/acme.json"
+	if [[ ! -f "$acme" ]]; then
+		sudo touch "$acme"
+		sudo chown "$serverUser":"$serverGroup" "$acme"
+		sudo chmod 600 "$acme"
+	fi
 
-  ## Environment variables file
-  envFile="${traefikDir}/.env"
-  if [[ -r "$envFile" ]]; then
-    # shellcheck disable=SC1091
-    # shellcheck source=/srv/rhdwp/traefik/.env
-    . "$envFile"
-  fi
+	## Environment variables file
+	envFile="${traefikDir}/.env"
+	if [[ -r "$envFile" ]]; then
+		# shellcheck disable=SC1091
+		# shellcheck source=/srv/rhdwp/traefik/.env
+		. "$envFile"
+	fi
 
-  ## Create sites directory
-  if [[ ! -d "${wwwDir}" ]]; then
-    mkdir "${wwwDir}"
-  fi
+	## Create sites directory
+	[[ ! -d "${wwwDir}" ]] && mkdir "${wwwDir}"
 
-  ## wp-cli permissions
-  sudo chown -R "$serverUser":"$serverGroup" "${rootDir}/.wp-cli"
+	## Log file
+	[[ ! -d "$logDir" ]] && mkdir "$logDir"
+
+	## wp-cli permissions
+	sudo chown -R "$serverUser":"$serverGroup" "${rootDir}/.wp-cli"
 }
 
 runSiteScripts() {
-  ## Run rhdwpStack in each site directory
+	## Run rhdwpStack in each site directory
 
-  for d in "${wwwDir}"/*; do
-    dir="${d##*/}"
-    _flags=" -q"
-    _branch=
+	for d in "${wwwDir}"/*; do
+		dir="${d##*/}"
+		_flags=" -q"
+		_branch=
 
-    (
-      cd "$d"
+		(
+			cd "$d"
 
-      _branch=$(git rev-parse --abbrev-ref HEAD)
+			_branch=$(git rev-parse --abbrev-ref HEAD)
 
-      if gitRepoNeedsUpdate; then
-        # Update and rebuild
-        echo "UPDATE $dir"
+			if gitRepoNeedsUpdate; then
+				# Update and rebuild
+				echo "UPDATE $dir"
 
-        # Check for main branch
-        if [[ "$_branch" != "main" ]]; then
-          git checkout main
-        fi
+				# Check for main branch
+				if [[ "$_branch" != "main" ]]; then
+					git checkout main
+				fi
 
-        git pull -q
-      fi
+				git pull -q
+			fi
 
-      # Run
-      # shellcheck disable=SC2086
-      sudo -u "$user" ./rhdwpStack $_flags
-    )
-  done
+			# Run
+			# shellcheck disable=SC2086
+			sudo -u "$user" ./rhdwpStack $_flags
+		)
+	done
 }
 
 installCron() {
-  ## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
-  local cronMsg="## Make sure Traefik restarts on reboot"
-  local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
+	## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
+	local cronMsg="## Make sure Traefik restarts on reboot"
+	local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
 
-  sudo touch "$cronFile"
-  sudo chown root:root "$cronFile"
-  sudo chmod 600 "$cronFile"
-  printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
+	sudo touch "$cronFile"
+	sudo chown root:root "$cronFile"
+	sudo chmod 600 "$cronFile"
+	printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
 }
 
 uninstallCron() {
-  ## Removes up the cron.d entry
-  sudo rm -f "$cronFile"
+	## Removes up the cron.d entry
+	sudo rm -f "$cronFile"
 }
 
 checkPortainerDNS() {
-  ## Check CloudFlare for "portainer" and "edge" CNAME entries
-  local cnames=("portainer" "edge")
-  local tld
-  tld=$(echo "$FQDN" | grep -o '[^.]*\.[^.]*$')
+	## Check CloudFlare for "portainer" and "edge" CNAME entries
+	local cnames=("portainer" "edge")
+	local tld
+	tld=$(echo "$FQDN" | grep -o '[^.]*\.[^.]*$')
 
-  # GET ZONE ID
-  cf_zone=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${tld}&status=active&match=all" \
-    -H "X-Auth-Email: ${CF_API_EMAIL}" \
-    -H "X-Auth-Key: ${CF_API_KEY}" \
-    -H "Content-Type: application/json")
+	# GET ZONE ID
+	cf_zone=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${tld}&status=active&match=all" \
+		-H "X-Auth-Email: ${CF_API_EMAIL}" \
+		-H "X-Auth-Key: ${CF_API_KEY}" \
+		-H "Content-Type: application/json")
 
-  cf_zone_id=$(echo "$cf_zone" | jq -r ".result[0].id")
+	cf_zone_id=$(echo "$cf_zone" | jq -r ".result[0].id")
 
-  # CREATE DNS ENTRIES
-  # Domain verification records
-  for record in "${cnames[@]}"; do
-    (
-      cfZoneApiUrl="https://api.cloudflare.com/client/v4/zones/${cf_zone_id}/dns_records"
-      # Skip adding Mailgun CNAME (tracking) entry to CloudFlare
-      curl -s -X POST "$cfZoneApiUrl" \
-        -H "X-Auth-Email: ${CF_API_EMAIL}" \
-        -H "X-Auth-Key: ${CF_API_KEY}" \
-        -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":'\""${record}.$(hostname)\""',"content":'\""${FQDN}\""',"ttl":1,"proxied":false}'
-    )
-  done
+	# CREATE DNS ENTRIES
+	# Domain verification records
+	for record in "${cnames[@]}"; do
+		(
+			cfZoneApiUrl="https://api.cloudflare.com/client/v4/zones/${cf_zone_id}/dns_records"
+			# Skip adding Mailgun CNAME (tracking) entry to CloudFlare
+			curl -s -X POST "$cfZoneApiUrl" \
+				-H "X-Auth-Email: ${CF_API_EMAIL}" \
+				-H "X-Auth-Key: ${CF_API_KEY}" \
+				-H "Content-Type: application/json" \
+				--data '{"type":"CNAME","name":'\""${record}.$(hostname)\""',"content":'\""${FQDN}\""',"ttl":1,"proxied":false}'
+		)
+	done
 }
 
 stopServer() {
-  ## Stop the main traefik stack and clean up
-  (cd "$traefikDir" && docker-compose down --remove-orphans -v)
-  uninstallCron
+	## Stop the main traefik stack and clean up
+	(cd "$traefikDir" && docker-compose down --remove-orphans -v)
+	uninstallCron
 }
 
 newSite() {
-  ## Create a new site stack in www/
-  # $1: the stack directory name (domain)
-  local dir="$1"
-  local sitePath="${wwwDir}/${dir}"
+	## Create a new site stack in www/
+	# $1: the stack directory name (domain)
+	local dir="$1"
+	local sitePath="${wwwDir}/${dir}"
 
-  # Sanity check
-  if [[ -z "$dir" ]]; then
-    echo "No directory name supplied."
-    exit 1
-  fi
+	# Sanity check
+	if [[ -z "$dir" ]]; then
+		echo "No directory name supplied."
+		exit 1
+	fi
 
-  # Spin up the stack
-  (
-    git clone git@github.com:gaswirth/rhdwp-docker "${sitePath}"
-    mkdir -p "$sitePath"/database/{data,initdb.d}
-  )
+	# Spin up the stack
+	(
+		git clone git@github.com:gaswirth/rhdwp-docker "${sitePath}"
+		mkdir -p "$sitePath"/database/{data,initdb.d}
+	)
 }
 
 startTraefik() {
-  ## Pull freshest images and start the stack
+	## Pull freshest images and start the stack
 
-  (
-    cd "$traefikDir"
+	(
+		cd "$traefikDir"
 
-    docker-compose pull -q
-    (docker-compose down -v --remove-orphans || true)
-    docker-compose up -d --remove-orphans
-  )
+		docker-compose pull -q
+		(docker-compose down -v --remove-orphans || true)
+		docker-compose up -d --remove-orphans
+	)
 }
 
 cleanUp() {
-  ## Stop worrying where you're going
+	## Stop worrying where you're going
 
-  echo "Cleaning up..."
+	echo "Cleaning up..."
 
-  for f in "${tempPrefix}"*; do
-    if [[ -e "$f" ]]; then
-      sudo rm "$f"
-    fi
-  done
+	for f in "${tempPrefix}"*; do
+		if [[ -e "$f" ]]; then
+			sudo rm "$f"
+		fi
+	done
 }
 
 #########
@@ -353,6 +374,8 @@ wwwDir="${rootDir}/www"
 composeTemplate="${traefikDir}/docker-compose-template.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 cronFile=/etc/cron.d/rhdwpTraefik
+logDir="${traefikDir}/log"
+logFile="${logDir}/traefik.log"
 network=web
 devMode=false
 serverUser=www-data
@@ -362,6 +385,8 @@ api=
 portainer=
 adminer=
 certStaging=false
+LOGLEVEL=ERROR
+clearLogs=false
 buffering=false
 
 ## Before we begin...
@@ -369,88 +394,107 @@ sanityChecks
 setupFiles
 
 ## Get options
-while getopts "habdfkm:n:ps" opt; do
-  case "$opt" in
-  h) # display help
-    help
-    exit 0
-    ;;
-  a) # API/Dashboard enabled
-    echo "Dashboard enabled."
-    api=true
-    ;;
-  b) # Large upload/buffer support
-    echo "Large upload/buffer support enabled."
-    buffering=true
-    ;;
-  d) # Development mode
-    echo "Development mode enabled."
-    devMode=true
-    api=true
-    ;;
-  f) # Freshen sites (www/ site stacks)
-    echo "Freshen sites"
-    runSiteScripts
-    exit
-    ;;
-  k) # Kill the server and cleanup
-    echo "Stopping main server and cleaning up cron jobs..."
-    stopServer
-    echo "Done."
-    exit 0
-    ;;
-  m) # Enable adminer for a project
-    if [[ -z "$OPTARG" ]]; then
-      echo "Error: The -m option requires a docker network prefix (example: abccom)."
-      exit 1
-    else
-      adminer=true
-      adminerVhost=${OPTARG}
-      echo "Adminer enabled for ${adminerVhost}"
-    fi
-    ;;
-  n) # Start a new site, and exit
-    if [[ -z "$OPTARG" ]]; then
-      echo "Error: The -n option requires an argument (directory name)."
-      exit 1
-    else
-      echo "Creating www/${OPTARG}"
-      newSite "${OPTARG}"
-      exit 0
-    fi
-    ;;
-  p) # Enable Portainer
-    if [[ -z "$CF_API_KEY" ]] || [[ -z "$CF_API_EMAIL" ]]; then
-      # Notify of the missing values, and skip.
-      if [[ -z "$CF_API_KEY" ]]; then
-        echo "CloudFlare API KEY not found. Skipping Portainer..."
-      fi
-      if [[ -z "$CF_API_EMAIL" ]]; then
-        echo "CloudFlare API Email not found. Skipping Portainer..."
-      fi
+while getopts "habcdfkl:m:n:ps" opt; do
+	case "$opt" in
+	h) # display help
+		help
+		exit 0
+		;;
+	a) # API/Dashboard enabled
+		echo "Dashboard enabled."
+		api=true
+		;;
+	b) # Large upload/buffer support
+		echo "Large upload/buffer support enabled."
+		buffering=true
+		;;
+	c) # Cleanup logs
+		clearLogs=true
+		;;
+	d) # Development mode
+		echo "Development mode enabled."
+		devMode=true
+		api=true
+		;;
+	f) # Freshen sites (www/ site stacks)
+		echo "Freshen sites"
+		runSiteScripts
+		exit
+		;;
+	k) # Kill the server and cleanup
+		echo "Stopping main server and cleaning up cron jobs..."
+		stopServer
+		echo "Done."
+		exit 0
+		;;
+	l) # Log level
+		_log="${OPTARG:-ERROR}"
+		_log="${_log^^}"
+		_levels=(DEBUG PANIC FATAL ERROR WARN INFO)
+		if [[ ${_levels[*]} =~ ${_log} ]]; then
+			LOGLEVEL="$_log"
+			echo "Log level: $LOGLEVEL"
+		else
+			echo "Invalid log level. Logging levels: ${_levels[*]}"
+			exit 1
+		fi
 
-      portainer=false
-    else
-      portainer=true
-      checkPortainerDNS
-    fi
-    ;;
-  s) # LetsEncrypt staging mode
-    echo
-    echo "*** LetsEncrypt STAGING ***"
-    echo
-    certStaging=true
-    ;;
-  \?) # invalid option
-    echo "Invalid option: -$OPTARG" >&2
-    exit 1
-    ;;
-  esac
+		;;
+	m) # Enable adminer for a project
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -m option requires a docker network prefix (example: abccom)."
+			exit 1
+		else
+			adminer=true
+			adminerVhost=${OPTARG}
+			echo "Adminer enabled for ${adminerVhost}"
+		fi
+		;;
+	n) # Start a new site, and exit
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -n option requires an argument (directory name)."
+			exit 1
+		else
+			echo "Creating www/${OPTARG}"
+			newSite "${OPTARG}"
+			exit 0
+		fi
+		;;
+	p) # Enable Portainer
+		if [[ -z "$CF_API_KEY" ]] || [[ -z "$CF_API_EMAIL" ]]; then
+			# Notify of the missing values, and skip.
+			if [[ -z "$CF_API_KEY" ]]; then
+				echo "CloudFlare API KEY not found. Skipping Portainer..."
+			fi
+			if [[ -z "$CF_API_EMAIL" ]]; then
+				echo "CloudFlare API Email not found. Skipping Portainer..."
+			fi
+
+			portainer=false
+		else
+			portainer=true
+			checkPortainerDNS
+		fi
+		;;
+	s) # LetsEncrypt staging mode
+		echo
+		echo "*** LetsEncrypt STAGING ***"
+		echo
+		certStaging=true
+		;;
+	\?) # invalid option
+		echo "Invalid option: -$OPTARG" >&2
+		exit 1
+		;;
+	esac
 done
+
+## Setup logs
+logs
 
 ## Create web network
 if ! docker network ls | grep -q "$network"; then
-  docker network create "$network" || true
+	docker network create "$network" || true
 fi
 
 ## Retrieve or prompt for environment variables, and export to .env
@@ -459,11 +503,11 @@ writeEnv
 
 ## System setup
 if [[ $devMode = true ]]; then
-  # Disable wp_cron customizations on development environments
-  uninstallCron
+	# Disable wp_cron customizations on development environments
+	uninstallCron
 else
-  # Set up production wp_cron replacement
-  installCron
+	# Set up production wp_cron replacement
+	installCron
 fi
 
 ## Enable Development Mode

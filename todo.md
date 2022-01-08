@@ -1,6 +1,3 @@
 # RHDWP Traefik Server TODO
-ADD
+REFINE
 - remove certificate from ACME storage when removing site permanently
-
-FIX
-- error logging to file

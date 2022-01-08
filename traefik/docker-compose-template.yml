@@ -8,7 +8,9 @@ services:
     command:
       - --entrypoints.http.address=:80
       - --entrypoints.https.address=:443
-      - --entrypoints.adminer.address=:8080
+      ## RHDWP: Adminer ##
+      # - --entrypoints.adminer.address=:8080
+      ## RHDWP: Adminer end ##
       - --providers.file.directory=/configs
       - --providers.file.watch=true
       - --providers.docker=true
@@ -35,8 +37,10 @@ services:
       # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
-      ## Logging
-      - --log.level=ERROR
+      ## RHDWP: Logging ##
+      - --log.level=${LOGLEVEL}
+      - --log.filePath=/log/traefik.log
+      ## RHDWP: Logging end ##
     security_opt:
       - no-new-privileges:true
     networks:
@@ -50,6 +54,7 @@ services:
       - ./configs:/configs
       - ./certs:/certs
       - ./acme.json:/acme.json
+      - ./log:/log
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_API_KEY=${CF_API_KEY}

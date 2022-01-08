@@ -1,14 +1,15 @@
 .vscode
 .cache
 
-*.log
 archive/
 www/*
 traefik/.env
 traefik/docker-compose.yml
 traefik/portainer/*
 traefik/certs
+traefik/log
 acme.json
+*.log
 
 .wp-cli/*
 !.wp-cli/config.yml
