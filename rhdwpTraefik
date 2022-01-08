@@ -229,6 +229,9 @@ setupFiles() {
 
 	## Log file
 	[[ ! -d "$logDir" ]] && mkdir "$logDir"
+	
+	## Remove legacy error.log
+	[[ -f "${logDir}/error.log" ]] && rm "${logDir}/error.log"
 
 	## wp-cli permissions
 	sudo chown -R "$serverUser":"$serverGroup" "${rootDir}/.wp-cli"
