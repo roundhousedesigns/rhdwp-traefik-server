@@ -1,0 +1,6 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/certs/{{ env "FQDN" }}.crt
+        keyFile: /certs/private/{{ env "FQDN" }}.key

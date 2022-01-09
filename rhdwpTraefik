@@ -214,26 +214,19 @@ generateComposeFile() {
 	chown "$user":"$user" "$composeFile"
 }
 
-generateTLSFile() {
+enableTLSDefaultStore() {
 	## Check if host certificates have been generated, and if so,
 	##  uncomment the default store
-	local tlsFile="${configsDir}/tls.yml"
-	local _tlsFile
-	_tlsFile=$(mktemp "${tempPrefix}.tlsXXXXX")
-
-	cat "${templatesDir}/tls-template.yml" >"$_tlsFile"
-
-	## check for certs
+	local certsFile="${configsDir}/certs.yml"
 
 	# Enable the TLS default store for the host
 	if [[ "$(checkDefaultCerts)" = true ]]; then
-		local _block=('defaultCertificate')
-		enableTemplateBlocks "$_tlsFile" "${_block[@]}"
+		cat "${templatesDir}/certs-template.yml" >"$certsFile"
+		chown "$user":"$user" "$certsFile"
+
 		defaultCerts=true
 	fi
 
-	mv "$_tlsFile" "$tlsFile"
-	chown "$user":"$user" "$tlsFile"
 }
 
 checkDefaultCerts() {
@@ -391,19 +384,25 @@ startTraefik() {
 
 		# If no certs were present during startup, wait 5 seconds for generation
 		#  and restart Traefik if generation occured (generally, first time startup)
-		if [[ "$defaultCerts" = false ]]; then
-			echo
-			echo "Waiting for host certificate generation..."
-			sleep 3
+		echo
+		echo "Waiting for host certificates..."
+
+		local retries=3
+		local i=0
+		while [[ "$defaultCerts" = false ]] && [[ "$i" < "$retries" ]]; do
 			if [[ "$(checkDefaultCerts)" = true ]]; then
 				echo
 				echo "Host certificates generated, restarting with TLS default store..."
 				echo
 
-				generateTLSFile
+				enableTLSDefaultStore
 				docker-compose restart
+			else
+				((++i))
+				# take a deep breath...
+				sleep 3
 			fi
-		fi
+		done
 	)
 }
 
@@ -576,7 +575,7 @@ fi
 generateComposeFile
 
 ## Generate traefik options file
-generateTLSFile
+enableTLSDefaultStore
 
 ## Start traefik
 startTraefik
