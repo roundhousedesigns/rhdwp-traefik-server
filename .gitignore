@@ -8,10 +8,12 @@ traefik/docker-compose.yml
 traefik/portainer/*
 traefik/certs
 traefik/log
-traefik/configs/*
 acme.json
 *.log
 *.log.*
+
+traefik/configs/*
+!traefik/configs/tls.yml
 
 .wp-cli/*
 !.wp-cli/config.yml
