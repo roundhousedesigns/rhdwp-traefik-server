@@ -14,11 +14,3 @@ tls:
     tlsv13only:
       minVersion: VersionTLS13
     sniStrict: true
-
-  ## RHDWP: defaultCertificate ##
-  stores:
-    default:
-      defaultCertificate:
-        certFile: /certs/certs/{{ env "FQDN" }}.crt
-        keyFile: /certs/private/{{ env "FQDN" }}.key
-  ## RHDWP: defaultCertificate end ##
