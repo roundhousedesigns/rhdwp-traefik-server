@@ -8,7 +8,7 @@ traefik/docker-compose.yml
 traefik/portainer/*
 traefik/certs
 traefik/log
-traefik/configs/tls.yml
+traefik/configs/*
 acme.json
 *.log
 *.log.*
