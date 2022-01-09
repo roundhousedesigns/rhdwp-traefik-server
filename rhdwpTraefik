@@ -6,11 +6,6 @@
 #
 # Manages and configures the rhdwp-docker site stack.
 #
-# TODO
-# ------
-# - Detect default cert in certs/{certs,private} and uncomment default store in
-#   configs/tls.yml if present.
-#
 ##########
 ## help ##
 ##########
@@ -78,7 +73,7 @@ gitRepoNeedsUpdate() {
 
 logs() {
 	## Set up log files
-	
+
 	# Clear first, if requested
 	if [[ "$clearLogs" = true ]]; then
 		sudo rm -rf -- "${logDir}"/*
@@ -155,11 +150,27 @@ writeEnv() {
 
 enableTemplateBlocks() {
 	## Enable a section in the composefile
-	local sections=("$@")
+	# $1: (string) file
+	# $2: (array) $sections[@]
 
-	for label in "${sections[@]}"; do
-		sed -i "/## RHDWP: ${label} ##/,/## RHDWP: ${label} end ##/s/[^#]# / /g" "$_composeFile"
+	local _file="$1" && shift
+	local _sections=("$@")
+
+	for label in "${_sections[@]}"; do
+		sed -i "/## RHDWP: ${label} ##/,/## RHDWP: ${label} end ##/s/[^#]# / /g" "$_file"
 	done
+}
+
+enableAdminerBlock() {
+	# Enable the Adminer service
+	# $1: (string) docker-compose file
+	# $2: (string) Virtual host to enable
+
+	local _file="$1"
+	local _adminerVhost
+	_adminerVhost=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
+	sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_file"
+	sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${_adminerVhost}/g" "$_file"
 }
 
 generateComposeFile() {
@@ -169,7 +180,7 @@ generateComposeFile() {
 	local _composeFile
 	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
 
-	cat "$composeTemplate" >"$_composeFile"
+	cat "${templatesDir}/docker-compose-template.yml" >"$_composeFile"
 
 	# Conditionally add sections
 	if [[ "$buffering" = true ]]; then
@@ -192,19 +203,47 @@ generateComposeFile() {
 		sections+=('Cert staging')
 	fi
 
-	enableTemplateBlocks "${sections[@]}"
+	enableTemplateBlocks "$_composeFile" "${sections[@]}"
 
 	# Enable adminer for specified project (using the stack's directory)
-	# e.g. use `abccom` for www/abc.com
-	# TODO Can this be combined into enableSectionBlocks()?
 	if [[ "$adminer" = true ]] && [[ -n "$adminerVhost" ]]; then
-		adminerName=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
-		sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_composeFile"
-		sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${adminerName}/g" "$_composeFile"
+		enableAdminerBlock "$_composeFile" "$adminerVhost"
 	fi
 
 	mv "$_composeFile" "$composeFile"
 	chown "$user":"$user" "$composeFile"
+}
+
+generateTLSFile() {
+	## Check if host certificates have been generated, and if so,
+	##  uncomment the default store
+	local tlsFile="${configsDir}/tls.yml"
+	local _tlsFile
+	_tlsFile=$(mktemp "${tempPrefix}.tlsXXXXX")
+
+	cat "${templatesDir}/tls-template.yml" >"$_tlsFile"
+
+	## check for certs
+
+	# Enable the TLS default store for the host
+	if [[ "$(checkDefaultCerts)" = true ]]; then
+		local _block=('defaultCertificate')
+		enableTemplateBlocks "$_tlsFile" "${_block[@]}"
+		defaultCerts=true
+	fi
+
+	mv "$_tlsFile" "$tlsFile"
+	chown "$user":"$user" "$tlsFile"
+}
+
+checkDefaultCerts() {
+	## Check if default certs for this FQDN have been generated and stored
+
+	if [[ -f "${certsDir}/certs/${FQDN}.crt" ]] && [[ -f "${certsDir}/private/${FQDN}.key" ]]; then
+		echo "true"
+	else
+		echo "false"
+	fi
 }
 
 setupFiles() {
@@ -229,7 +268,7 @@ setupFiles() {
 
 	## Log file
 	[[ ! -d "$logDir" ]] && mkdir "$logDir"
-	
+
 	## Remove legacy error.log
 	[[ -f "${logDir}/error.log" ]] && rm "${logDir}/error.log"
 
@@ -297,19 +336,20 @@ checkPortainerDNS() {
 		-H "X-Auth-Key: ${CF_API_KEY}" \
 		-H "Content-Type: application/json")
 
-	cf_zone_id=$(echo "$cf_zone" | jq -r ".result[0].id")
+	cf_zone_id=$(jq -r ".result[0].id" <<<"$cf_zone")
 
 	# CREATE DNS ENTRIES
 	# Domain verification records
 	for record in "${cnames[@]}"; do
 		(
 			cfZoneApiUrl="https://api.cloudflare.com/client/v4/zones/${cf_zone_id}/dns_records"
+
 			# Skip adding Mailgun CNAME (tracking) entry to CloudFlare
 			curl -s -X POST "$cfZoneApiUrl" \
 				-H "X-Auth-Email: ${CF_API_EMAIL}" \
 				-H "X-Auth-Key: ${CF_API_KEY}" \
 				-H "Content-Type: application/json" \
-				--data '{"type":"CNAME","name":'\""${record}.$(hostname)\""',"content":'\""${FQDN}\""',"ttl":1,"proxied":false}'
+				--data '{"type":"CNAME","name":'\""${record}.$(hostname)\""',"content":'\""${FQDN}\""',"ttl":1,"proxied":false}' >/dev/null
 		)
 	done
 }
@@ -348,6 +388,22 @@ startTraefik() {
 		docker-compose pull -q
 		(docker-compose down -v --remove-orphans || true)
 		docker-compose up -d --remove-orphans
+
+		# If no certs were present during startup, wait 5 seconds for generation
+		#  and restart Traefik if generation occured (generally, first time startup)
+		if [[ "$defaultCerts" = false ]]; then
+			echo
+			echo "Waiting for host certificate generation..."
+			sleep 3
+			if [[ "$(checkDefaultCerts)" = true ]]; then
+				echo
+				echo "Host certificates generated, restarting with TLS default store..."
+				echo
+
+				generateTLSFile
+				docker-compose restart
+			fi
+		fi
 	)
 }
 
@@ -374,11 +430,14 @@ FQDN=$(hostname -f)
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 wwwDir="${rootDir}/www"
-composeTemplate="${traefikDir}/docker-compose-template.yml"
+templatesDir="${traefikDir}/templates"
+configsDir="${traefikDir}/configs"
+certsDir="${traefikDir}/certs"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 cronFile=/etc/cron.d/rhdwpTraefik
 logDir="${traefikDir}/log"
 logFile="${logDir}/traefik.log"
+defaultCerts=false
 network=web
 devMode=false
 serverUser=www-data
@@ -515,6 +574,9 @@ fi
 
 ## Enable Development Mode
 generateComposeFile
+
+## Generate traefik options file
+generateTLSFile
 
 ## Start traefik
 startTraefik
