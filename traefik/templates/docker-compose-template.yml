@@ -99,7 +99,7 @@ services:
       - ./acme.json:/acme.json
 
   tinyhost:
-    image: gaswirth/tinyhost:latest
+    image: nginx:alpine
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
@@ -114,6 +114,10 @@ services:
       - "traefik.http.routers.host-secure.service=host"
       - "traefik.http.middlewares.host-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.host.middlewares=host-https-redirect"
+    environment:
+      - NGINX_HOST=${FQDN}
+    volumes:
+      - ./host:/etc/nginx/templates
     networks:
       - web
 

@@ -217,7 +217,6 @@ generateComposeFile() {
 enableTLSDefaultStore() {
 	## Check if host certificates have been generated, and if so,
 	##  uncomment the default store
-	local certsFile="${configsDir}/certs.yml"
 
 	# Enable the TLS default store for the host
 	if [[ "$(checkDefaultCerts)" = true ]]; then
@@ -347,12 +346,6 @@ checkPortainerDNS() {
 	done
 }
 
-stopServer() {
-	## Stop the main traefik stack and clean up
-	(cd "$traefikDir" && docker-compose down --remove-orphans -v)
-	uninstallCron
-}
-
 newSite() {
 	## Create a new site stack in www/
 	# $1: the stack directory name (domain)
@@ -372,7 +365,7 @@ newSite() {
 	)
 }
 
-startTraefik() {
+startStack() {
 	## Pull freshest images and start the stack
 
 	(
@@ -384,26 +377,40 @@ startTraefik() {
 
 		# If no certs were present during startup, wait 5 seconds for generation
 		#  and restart Traefik if generation occured (generally, first time startup)
-		echo
-		echo "Waiting for host certificates..."
-
-		local retries=3
+		local retries=6
 		local i=0
+
 		while [[ "$defaultCerts" = false ]] && [[ "$i" < "$retries" ]]; do
+			if [[ "$i" -eq 0 ]]; then
+				echo "Checking host certificates..."
+			else
+				echo "Retrying in 5 seconds..." && sleep 5
+			fi
+
 			if [[ "$(checkDefaultCerts)" = true ]]; then
 				echo
-				echo "Host certificates generated, restarting with TLS default store..."
+				echo "Host certificates generated, host TLS enabled."
 				echo
 
 				enableTLSDefaultStore
 				docker-compose restart
 			else
 				((++i))
-				# take a deep breath...
-				sleep 3
+
+				[[ "$i" = "$retries" ]] && echo "Host certificate not generated or not found, using default self-signed certificate."
 			fi
 		done
 	)
+}
+
+stopStack() {
+	## Stop the main traefik stack and clean up
+	(cd "$traefikDir" && docker-compose down --remove-orphans -v)
+
+	# Remove the certs.yml file.
+	[[ -f "$certsFile" ]] && rm "$certsFile"
+
+	uninstallCron
 }
 
 cleanUp() {
@@ -432,6 +439,7 @@ wwwDir="${rootDir}/www"
 templatesDir="${traefikDir}/templates"
 configsDir="${traefikDir}/configs"
 certsDir="${traefikDir}/certs"
+certsFile="${configsDir}/certs.yml"
 tempPrefix=$(printf '/tmp/rhdwp.%s' "$(head -3 /dev/urandom | tr -cd '[:alnum:]' | cut -c -6).")
 cronFile=/etc/cron.d/rhdwpTraefik
 logDir="${traefikDir}/log"
@@ -483,8 +491,8 @@ while getopts "habcdfkl:m:n:ps" opt; do
 		exit
 		;;
 	k) # Kill the server and cleanup
-		echo "Stopping main server and cleaning up cron jobs..."
-		stopServer
+		echo "Stopping main server and cleaning up..."
+		stopStack
 		echo "Done."
 		exit 0
 		;;
@@ -578,7 +586,7 @@ generateComposeFile
 enableTLSDefaultStore
 
 ## Start traefik
-startTraefik
+startStack
 
 ## Don't be a slob
 cleanUp
