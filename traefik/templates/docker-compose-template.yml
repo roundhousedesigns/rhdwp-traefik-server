@@ -116,6 +116,7 @@ services:
       - "traefik.http.routers.host.middlewares=host-https-redirect"
     environment:
       - NGINX_HOST=${FQDN}
+      - HOSTNAME=${HOSTNAME}
     volumes:
       - ./host:/etc/nginx/templates
     networks:

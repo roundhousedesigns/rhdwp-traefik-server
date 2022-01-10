@@ -134,6 +134,7 @@ writeEnv() {
 
 	cat <<-EOT >"$envFile"
 		FQDN=$FQDN
+		HOSTNAME=$HOSTNAME
 		CF_API_EMAIL=$CF_API_EMAIL
 		CF_API_KEY=$CF_API_KEY
 		MG_API_KEY=$MG_API_KEY
@@ -433,6 +434,7 @@ trap ctrlC INT
 
 ## Initialize variables
 FQDN=$(hostname -f)
+HOSTNAME=$(hostname)
 rootDir="$(dirname "$(realpath "$0")")"
 traefikDir="${rootDir}/traefik"
 wwwDir="${rootDir}/www"

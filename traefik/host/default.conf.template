@@ -2,7 +2,14 @@ server {
   listen 80;
   server_name ${NGINX_HOST};
 
+  error_page 301 @301;
+
   location / {
-    return 301 https://roundhouse-designs.com/?hallo=${NGINX_HOST};
+    return 301 https://roundhouse-designs.com/;
+  }
+
+  location @301 {
+    add_header X-RHD-Bounce ${HOSTNAME};
+    return 301 $sent_http_location;
   }
 }
