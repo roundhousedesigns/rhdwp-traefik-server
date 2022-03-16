@@ -4,7 +4,7 @@
 ## rhdwpTraefik ##
 ##################
 #
-# Manages and configures the rhdwp-docker site stack.
+# Manages and configures the rhdwp site stack.
 #
 ##########
 ## help ##
@@ -190,6 +190,8 @@ generateComposeFile() {
 
 	if [[ "$api" = true ]]; then
 		sections+=('API')
+	else
+		sections+=('Tinyhost')
 	fi
 
 	if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
@@ -361,7 +363,7 @@ newSite() {
 
 	# Spin up the stack
 	(
-		git clone git@github.com:gaswirth/rhdwp-docker "${sitePath}"
+		git clone git@github.com:roundhousedesigns/rhdwp "${sitePath}"
 		mkdir -p "$sitePath"/database/{data,initdb.d}
 	)
 }
