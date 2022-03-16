@@ -2,7 +2,7 @@ version: "3"
 
 services:
   traefik:
-    image: traefik:v2.6
+    image: traefik:v2.6.1
     container_name: traefik
     restart: unless-stopped
     command:
@@ -22,6 +22,8 @@ services:
       ## RHDWP: API end ##
       ## RHDWP: Pilot ##
       # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
+      # - --experimental.plugins.traefik-real-ip.modulename:github.com/soulbalz/traefik-real-ip
+      # - --experimental.plugins.traefik-real-ip.version: v1.0.3
       ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json
@@ -98,29 +100,31 @@ services:
       - ./certs:/certs
       - ./acme.json:/acme.json
 
-  tinyhost:
-    image: nginx:alpine
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=web"
-      - "traefik.http.routers.host.entrypoints=http"
-      - "traefik.http.routers.host-secure.entrypoints=https"
-      - "traefik.http.routers.host.rule=Host(`${FQDN}`)"
-      - "traefik.http.routers.host-secure.rule=Host(`${FQDN}`)"
-      - "traefik.http.services.host.loadbalancer.server.port=80"
-      - "traefik.http.routers.host-secure.tls=true"
-      - "traefik.http.routers.host-secure.tls.certresolver=http"
-      - "traefik.http.routers.host-secure.tls.domains[0].main=${FQDN}"
-      - "traefik.http.routers.host-secure.service=host"
-      - "traefik.http.middlewares.host-https-redirect.redirectscheme.scheme=https"
-      - "traefik.http.routers.host.middlewares=host-https-redirect"
-    environment:
-      - NGINX_HOST=${FQDN}
-      - HOSTNAME=${HOSTNAME}
-    volumes:
-      - ./host:/etc/nginx/templates
-    networks:
-      - web
+  ## RHDWP: Tinyhost ##
+  # tinyhost:
+  #   image: nginx:alpine
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.docker.network=web"
+  #     - "traefik.http.routers.host.entrypoints=http"
+  #     - "traefik.http.routers.host-secure.entrypoints=https"
+  #     - "traefik.http.routers.host.rule=Host(`${FQDN}`)"
+  #     - "traefik.http.routers.host-secure.rule=Host(`${FQDN}`)"
+  #     - "traefik.http.services.host.loadbalancer.server.port=80"
+  #     - "traefik.http.routers.host-secure.tls=true"
+  #     - "traefik.http.routers.host-secure.tls.certresolver=http"
+  #     - "traefik.http.routers.host-secure.tls.domains[0].main=${FQDN}"
+  #     - "traefik.http.routers.host-secure.service=host"
+  #     - "traefik.http.middlewares.host-https-redirect.redirectscheme.scheme=https"
+  #     - "traefik.http.routers.host.middlewares=host-https-redirect"
+  #   environment:
+  #     - NGINX_HOST=${FQDN}
+  #     - HOSTNAME=${HOSTNAME}
+  #   volumes:
+  #     - ./host:/etc/nginx/templates
+  #   networks:
+  #     - web
+  ## RHDWP: Tinyhost end ##
 
   ## RHDWP: Adminer ##
   # adminer:
