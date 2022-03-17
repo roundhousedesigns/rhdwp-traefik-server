@@ -22,8 +22,6 @@ services:
       ## RHDWP: API end ##
       ## RHDWP: Pilot ##
       # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
-      # - --experimental.plugins.traefik-real-ip.modulename=github.com/soulbalz/traefik-real-ip
-      # - --experimental.plugins.traefik-real-ip.version=v1.0.3
       ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json
