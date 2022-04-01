@@ -88,7 +88,7 @@ services:
       ## RHDWP: API end ##
 
   traefik-certs-dumper:
-    image: ldez/traefik-certs-dumper:v2.7.4
+    image: ldez/traefik-certs-dumper:v2.8.1
     entrypoint: sh -c '
       apk add jq;
       while ! [[ -e /acme.json ]] || [[ -z "$$(jq ".[] | .Certificates | length" /acme.json)" ]];
