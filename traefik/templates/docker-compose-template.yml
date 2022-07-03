@@ -1,8 +1,8 @@
-version: "3"
+version: '3'
 
 services:
   traefik:
-    image: traefik:v2.6.1
+    image: traefik:v2.7
     container_name: traefik
     restart: unless-stopped
     command:
@@ -20,9 +20,6 @@ services:
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##
-      ## RHDWP: Pilot ##
-      # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
-      ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=0
@@ -41,6 +38,10 @@ services:
       - --log.level=${LOGLEVEL}
       - --log.filePath=/log/traefik.log
       ## RHDWP: Logging end ##
+      # Enable Hub communication (open the port 9900 and 9901 by default)
+      - --experimental.hub=true
+      - --hub.tls.insecure=false
+      - --metrics.prometheus.addrouterslabels=true
     security_opt:
       - no-new-privileges:true
     networks:
@@ -60,7 +61,7 @@ services:
       - CF_API_KEY=${CF_API_KEY}
       - FQDN=${FQDN}
     labels:
-      - "traefik.http.middlewares.service-retry.retry.attempts=4"
+      - 'traefik.http.middlewares.service-retry.retry.attempts=4'
       - 'traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)'
       - 'traefik.http.routers.http-catchall.entrypoints=http'
       - 'traefik.http.routers.http-catchall.middlewares=redirect-to-https'
@@ -86,6 +87,21 @@ services:
       # - 'traefik.http.routers.api.middlewares=api-https-redirect'
       # - 'traefik.http.routers.api-https.service=api@internal'
       ## RHDWP: API end ##
+
+  hub-agent:
+    image: ghcr.io/traefik/hub-agent-traefik:v0.7.2
+    container_name: hub-agent
+    restart: 'on-failure'
+    command:
+      - run
+      - --hub.token=${TRAEFIK_HUB_TOKEN}
+      - --auth-server.advertise-url=http://hub-agent
+      - --traefik.host=traefik
+      - --traefik.tls.insecure=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - traefik
 
   traefik-certs-dumper:
     image: ldez/traefik-certs-dumper:v2.8.1

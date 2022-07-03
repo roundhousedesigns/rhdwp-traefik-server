@@ -91,9 +91,9 @@ logs() {
 askEnv() {
 	## Verify .env values
 
-	# Traefik Pilot instance token
-	if [[ -z "$TRAEFIK_PILOT_TOKEN" ]]; then
-		read -r -p "Traefik Pilot instance token: " TRAEFIK_PILOT_TOKEN
+	# Traefik Hub token
+	if [[ -z "$TRAEFIK_HUB_TOKEN" ]]; then
+		read -r -p "Traefik Hub token: " TRAEFIK_HUB_TOKEN
 	fi
 
 	# CloudFlare account email
@@ -141,7 +141,7 @@ writeEnv() {
 		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
 		DEV_SMTP_PASS=$DEV_SMTP_PASS
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
-		TRAEFIK_PILOT_TOKEN=$TRAEFIK_PILOT_TOKEN
+		TRAEFIK_HUB_TOKEN=$TRAEFIK_HUB_TOKEN
 		LOGLEVEL=$LOGLEVEL
 	EOT
 
@@ -194,8 +194,8 @@ generateComposeFile() {
 		sections+=('Tinyhost')
 	fi
 
-	if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
-		sections+=('Pilot')
+	if [[ -n "$TRAEFIK_HUB_TOKEN" ]]; then
+		sections+=('Hub')
 	fi
 
 	if [[ "$portainer" = true ]]; then
@@ -462,10 +462,6 @@ LOGLEVEL=ERROR
 clearLogs=false
 buffering=false
 
-## Before we begin...
-sanityChecks
-setupFiles
-
 ## Get options
 while getopts "habcdfkl:m:n:ps" opt; do
 	case "$opt" in
@@ -561,6 +557,10 @@ while getopts "habcdfkl:m:n:ps" opt; do
 		;;
 	esac
 done
+
+## Before we begin...
+sanityChecks
+setupFiles
 
 ## Setup logs
 logs
