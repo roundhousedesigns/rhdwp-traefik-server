@@ -17,6 +17,8 @@ services:
       - --providers.docker.endpoint=unix:///var/run/docker.sock
       - --providers.docker.exposedbydefault=false
       - --providers.docker.watch=true
+      - --log.level=${LOGLEVEL}
+      - --log.filePath=/log/traefik.log
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##
@@ -34,13 +36,9 @@ services:
       # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
-      ## RHDWP: Logging ##
-      - --log.level=${LOGLEVEL}
-      - --log.filePath=/log/traefik.log
-      ## RHDWP: Logging end ##
       # Enable Hub communication (open the port 9900 and 9901 by default)
       - --experimental.hub=true
-      - --hub.tls.insecure=false
+      - --hub.tls.insecure=true
       - --metrics.prometheus.addrouterslabels=true
     security_opt:
       - no-new-privileges:true
@@ -60,6 +58,11 @@ services:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_API_KEY=${CF_API_KEY}
       - FQDN=${FQDN}
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
     labels:
       - 'traefik.http.middlewares.service-retry.retry.attempts=4'
       - 'traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)'
