@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 
 services:
   traefik:
@@ -59,8 +59,13 @@ services:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_API_KEY=${CF_API_KEY}
       - FQDN=${FQDN}
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
     labels:
-      - "traefik.http.middlewares.service-retry.retry.attempts=4"
+      - 'traefik.http.middlewares.service-retry.retry.attempts=4'
       - 'traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)'
       - 'traefik.http.routers.http-catchall.entrypoints=http'
       - 'traefik.http.routers.http-catchall.middlewares=redirect-to-https'
