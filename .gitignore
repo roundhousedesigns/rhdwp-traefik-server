@@ -2,6 +2,7 @@
 .cache
 
 archive/
+archived/
 www/*
 traefik/.env
 traefik/docker-compose.yml
