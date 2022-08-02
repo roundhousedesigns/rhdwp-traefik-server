@@ -20,9 +20,6 @@ services:
       ## RHDWP: API ##
       # - --api.dashboard=true
       ## RHDWP: API end ##
-      ## RHDWP: Pilot ##
-      # - --pilot.token=${TRAEFIK_PILOT_TOKEN}
-      ## RHDWP: Pilot end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json
       - --certificatesresolvers.cloudflare.acme.dnschallenge.delaybeforecheck=0

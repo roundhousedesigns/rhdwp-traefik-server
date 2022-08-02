@@ -91,11 +91,6 @@ logs() {
 askEnv() {
 	## Verify .env values
 
-	# Traefik Pilot instance token
-	if [[ -z "$TRAEFIK_PILOT_TOKEN" ]]; then
-		read -r -p "Traefik Pilot instance token: " TRAEFIK_PILOT_TOKEN
-	fi
-
 	# CloudFlare account email
 	while [[ -z "$CF_API_EMAIL" ]]; do
 		read -r -p "CloudFlare account email: " CF_API_EMAIL
@@ -141,7 +136,6 @@ writeEnv() {
 		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
 		DEV_SMTP_PASS=$DEV_SMTP_PASS
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
-		TRAEFIK_PILOT_TOKEN=$TRAEFIK_PILOT_TOKEN
 		LOGLEVEL=$LOGLEVEL
 	EOT
 
@@ -192,10 +186,6 @@ generateComposeFile() {
 		sections+=('API')
 	else
 		sections+=('Tinyhost')
-	fi
-
-	if [[ -n "$TRAEFIK_PILOT_TOKEN" ]]; then
-		sections+=('Pilot')
 	fi
 
 	if [[ "$portainer" = true ]]; then
