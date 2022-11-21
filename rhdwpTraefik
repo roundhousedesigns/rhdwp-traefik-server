@@ -370,6 +370,7 @@ startStack() {
 
 		# If no certs were present during startup, wait 5 seconds for generation
 		#  and restart Traefik if generation occured (generally, first time startup)
+		# FIXME This doesn't seem to be working...
 		local retries=6
 		local i=0
 
