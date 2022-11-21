@@ -378,7 +378,7 @@ startStack() {
 			if [[ "$i" -eq 0 ]]; then
 				echo "Checking host certificates..."
 			else
-				echo "Retrying in 5 seconds..." && sleep 5
+				echo "-->retrying in 5 seconds..." && sleep 5
 			fi
 
 			if [[ "$(checkDefaultCerts)" = true ]]; then
