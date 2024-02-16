@@ -2,12 +2,14 @@ version: "3"
 
 services:
   traefik:
-    image: traefik:v2.8.1
+    image: traefik:v3.0
     container_name: traefik
     restart: unless-stopped
     command:
       - --entrypoints.http.address=:80
       - --entrypoints.https.address=:443
+      - --entrypoints.https.asDefault=true
+      - --entrypoints.name.http3.advertisedPort=443
       ## RHDWP: Adminer ##
       # - --entrypoints.adminer.address=:8080
       ## RHDWP: Adminer end ##
@@ -55,7 +57,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
+        max-size: "4m"
         max-file: "3"
     labels:
       - "traefik.http.middlewares.service-retry.retry.attempts=4"
