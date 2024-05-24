@@ -158,7 +158,7 @@ enableTemplateBlocks() {
 
 enableAdminerBlock() {
 	# Enable the Adminer service
-	# $1: (string) docker-compose file
+	# $1: (string) Compose file
 	# $2: (string) Virtual host to enable
 
 	local _file="$1"
@@ -364,9 +364,9 @@ startStack() {
 	(
 		cd "$traefikDir"
 
-		docker-compose pull -q
-		(docker-compose down -v --remove-orphans || true)
-		docker-compose up -d --remove-orphans
+		docker compose pull -q
+		(docker compose down -v --remove-orphans || true)
+		docker compose up -d --remove-orphans
 
 		# If no certs were present during startup, wait 5 seconds for generation
 		#  and restart Traefik if generation occured (generally, first time startup)
@@ -387,7 +387,7 @@ startStack() {
 				echo
 
 				enableTLSDefaultStore
-				docker-compose restart
+				docker compose restart
 			else
 				((++i))
 
@@ -399,7 +399,7 @@ startStack() {
 
 stopStack() {
 	## Stop the main traefik stack and clean up
-	(cd "$traefikDir" && docker-compose down --remove-orphans -v)
+	(cd "$traefikDir" && docker compose down --remove-orphans -v)
 
 	# Remove the certs.yml file.
 	[[ -f "$certsFile" ]] && rm "$certsFile"

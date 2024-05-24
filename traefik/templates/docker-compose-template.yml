@@ -1,10 +1,22 @@
-version: "3"
-
 services:
   traefik:
     image: traefik:v3.0
     container_name: traefik
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    network_mode: host
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./configs:/configs
+      - ./certs:/certs
+      - ./acme.json:/acme.json
+      - ./log:/log
+    environment:
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
+      - FQDN=${FQDN}
     command:
       - --entrypoints.http.address=:80
       - --entrypoints.https.address=:443
@@ -21,6 +33,7 @@ services:
       - --providers.docker.watch=true
       ## RHDWP: API ##
       # - --api.dashboard=true
+      # - --api.insecure=true
       ## RHDWP: API end ##
       - --certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}
       - --certificatesresolvers.cloudflare.acme.storage=/acme.json
@@ -32,33 +45,14 @@ services:
       - --certificatesresolvers.http.acme.storage=/acme.json
       - --certificatesresolvers.http.acme.httpchallenge.entrypoint=http
       - --certificatesresolvers.cloudflare.acme.keyType
+      - --log.level=${LOGLEVEL}
+      - --log.filePath=/log/traefik.log
+      - --log.maxsize=5
+      - --log.maxbackups=3
       ## RHDWP: Cert staging ##
       # - --certificatesresolvers.cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
-      ## RHDWP: Logging ##
-      - --log.level=${LOGLEVEL}
-      - --log.filePath=/log/traefik.log
-      ## RHDWP: Logging end ##
-    security_opt:
-      - no-new-privileges:true
-    network_mode: host
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./configs:/configs
-      - ./certs:/certs
-      - ./acme.json:/acme.json
-      - ./log:/log
-    environment:
-      - CF_API_EMAIL=${CF_API_EMAIL}
-      - CF_API_KEY=${CF_API_KEY}
-      - FQDN=${FQDN}
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "4m"
-        max-file: "3"
     labels:
       - "traefik.http.middlewares.service-retry.retry.attempts=4"
       - "traefik.http.middlewares.forward-headers.forwardauth.trustForwardHeader=true"
