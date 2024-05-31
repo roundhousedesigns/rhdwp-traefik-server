@@ -19,7 +19,7 @@ services:
       - FQDN=${FQDN}
     command:
       - --entrypoints.http.address=:80
-      - --entrypoints.https.address=:443
+      - --entrypoints.https.address=:443 
       - --entrypoints.https.asDefault=true
       - --entrypoints.name.http3.advertisedPort=443
       ## RHDWP: Adminer ##
@@ -60,6 +60,7 @@ services:
       - "traefik.http.routers.http-catchall.entrypoints=http"
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
       ## RHDWP: Buffering ##
       # - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
       # - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
