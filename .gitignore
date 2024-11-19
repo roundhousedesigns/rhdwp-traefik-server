@@ -15,6 +15,7 @@ acme.json
 
 traefik/configs/*
 !traefik/configs/tls.yml
+!traefik/configs/middlewares.yml
 
 .wp-cli/*
 !.wp-cli/config.yml
