@@ -58,9 +58,6 @@ services:
       - "traefik.http.middlewares.forward-headers.forwardauth.trustForwardHeader=true"
       - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=http"
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
       ## RHDWP: Buffering ##
       # - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
       # - "traefik.https.middlewares.limit.buffering.memRequestBodyBytes=4000000000"
