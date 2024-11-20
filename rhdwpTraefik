@@ -137,6 +137,7 @@ writeEnv() {
 		DEV_SMTP_PASS=$DEV_SMTP_PASS
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
 		LOGLEVEL=$LOGLEVEL
+		DASHBOARD_AUTH=$DASHBOARD_AUTH
 	EOT
 
 	sudo chown "$serverUser":"$serverGroup" "$envFile"
@@ -184,8 +185,6 @@ generateComposeFile() {
 
 	if [[ "$api" = true ]]; then
 		sections+=('API')
-	else
-		sections+=('Tinyhost')
 	fi
 
 	if [[ "$portainer" = true ]]; then
