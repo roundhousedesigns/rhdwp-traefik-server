@@ -13,5 +13,3 @@ http:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         stsPreload: true
-        customResponseHeaders:
-          X-Robots-Tag: "noindex, nofollow"
