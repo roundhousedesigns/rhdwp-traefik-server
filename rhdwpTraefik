@@ -176,7 +176,28 @@ generateComposeFile() {
 	local _composeFile
 	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
 
+	# Build hosts rule
+	local _hosts="Host(\`\${VIRTUAL_HOST}\`) || Host(\`www.\${VIRTUAL_HOST}\`)"
+	if [[ -n "${ADDITIONAL_HOSTS}" ]]; then
+		# Split ADDITIONAL_HOSTS on commas and add each as a Host rule
+		IFS=',' read -ra ADDR <<< "${ADDITIONAL_HOSTS}"
+		for host in "${ADDR[@]}"; do
+			_hosts="${_hosts} || Host(\`${host}\`)"
+		done
+	fi
+
+	# Build sans list
+	local _sans="- \"traefik.http.routers.\${PROJECT_LABEL}_wp-secure.tls.domains[0].sans=www.\${VIRTUAL_HOST}"
+	if [[ -n "${ADDITIONAL_HOSTS}" ]]; then
+		_sans="${_sans},${ADDITIONAL_HOSTS}"
+	fi
+	_sans="${_sans}\""
+
 	cat "${templatesDir}/docker-compose-template.yml" >"$_composeFile"
+	
+	# Replace template variables
+	sed -i "s/%%hosts%%/${_hosts}/" "$_composeFile"
+	sed -i "s/%%sans%%/${_sans}/" "$_composeFile"
 
 	# Conditionally add sections
 	if [[ "$buffering" = true ]]; then
