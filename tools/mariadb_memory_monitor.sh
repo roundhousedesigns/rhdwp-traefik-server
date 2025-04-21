@@ -8,12 +8,14 @@
 #   -i <interval>    Sampling interval in seconds (default: 10)
 #   -o <file>       Output log file (default: ./mariadb_memory_YYYYMMDD_HHMMSS.log)
 #   -q              Quiet mode - only output to log file
+#   -c              Current stats only - skip monitoring period
 #   -h              Show this help message
 
 # Default values
 DURATION=5
 INTERVAL=10
 QUIET=false
+CURRENT_ONLY=false
 LOG_DIR="$(dirname "$0")"
 LOG_FILE="${LOG_DIR}/mariadb_memory_$(date +%Y%m%d_%H%M%S).log"
 TOTAL_CONTAINERS=0
@@ -32,10 +34,12 @@ show_help() {
     echo "  -i <interval>    Sampling interval in seconds (default: 10)"
     echo "  -o <file>       Output log file (default: ./mariadb_memory_YYYYMMDD_HHMMSS.log)"
     echo "  -q              Quiet mode - only output to log file"
+    echo "  -c              Current stats only - skip monitoring period"
     echo "  -h              Show this help message"
     echo
     echo "Example:"
     echo "  $0 -d 10 -i 5 -o ./memory_report.log  # Monitor for 10 minutes, 5-second intervals"
+    echo "  $0 -c                                  # Show current stats only"
     exit 0
 }
 
@@ -94,54 +98,58 @@ get_buffer_pool_size() {
     fi
 }
 
+# Function to get current memory usage
+get_current_memory_usage() {
+    local container=$1
+    docker stats --no-stream --format "{{.MemUsage}}" "$container" | awk -F / '{print $1}' | sed 's/[^0-9.]//g'
+}
+
 # Function to calculate suggested memory limit
 calculate_suggested_limit() {
-    local max_mem=$1
+    local current_mem=$1
     # Use bc for floating point calculations
-    local suggested=$(echo "scale=0; ($max_mem * 1.5 + 255) / 256 * 256" | bc)
+    local suggested=$(echo "scale=0; ($current_mem * 1.5 + 255) / 256 * 256" | bc)
     echo "$suggested"
 }
 
 # Parse command line arguments
-while getopts "d:i:o:qh" opt; do
+while getopts "d:i:o:qch" opt; do
     case $opt in
         d) DURATION=$OPTARG ;;
         i) INTERVAL=$OPTARG ;;
         o) LOG_FILE=$OPTARG ;;
         q) QUIET=true ;;
+        c) CURRENT_ONLY=true ;;
         h) show_help ;;
         \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
     esac
 done
 
 # Validate inputs
-if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [[ "$DURATION" -lt 1 ]]; then
-    log "Error: Duration must be a positive integer" "ERROR"
-    exit 1
-fi
+if [[ "$CURRENT_ONLY" != true ]]; then
+    if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [[ "$DURATION" -lt 1 ]]; then
+        log "Error: Duration must be a positive integer" "ERROR"
+        exit 1
+    fi
 
-if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]] || [[ "$INTERVAL" -lt 1 ]]; then
-    log "Error: Interval must be a positive integer" "ERROR"
-    exit 1
+    if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]] || [[ "$INTERVAL" -lt 1 ]]; then
+        log "Error: Interval must be a positive integer" "ERROR"
+        exit 1
+    fi
 fi
-
-# Calculate number of samples
-SAMPLES=$(( (DURATION * 60) / INTERVAL ))
 
 # Count total containers
 TOTAL_CONTAINERS=$(docker ps --filter "ancestor=mariadb" --format "{{.Names}}" | wc -l)
 
-log "Starting MariaDB memory monitoring"
-log "Duration: $DURATION minutes, Interval: $INTERVAL seconds"
+if [[ "$CURRENT_ONLY" == true ]]; then
+    log "Starting MariaDB current memory check"
+else
+    log "Starting MariaDB memory monitoring"
+    log "Duration: $DURATION minutes, Interval: $INTERVAL seconds"
+fi
 log "Found $TOTAL_CONTAINERS MariaDB containers"
 log "Results will be saved to: $LOG_FILE"
 echo
-
-# Function to get memory usage
-get_memory_usage() {
-    local container=$1
-    docker stats --no-stream --format "{{.MemUsage}}" "$container" | awk -F / '{print $1}' | sed 's/[^0-9.]//g'
-}
 
 # Function to monitor container for specified time
 monitor_container() {
@@ -154,7 +162,7 @@ monitor_container() {
     
     # Monitor for specified duration
     for ((i=1; i<=SAMPLES; i++)); do
-        current_mem=$(get_memory_usage "$container")
+        current_mem=$(get_current_memory_usage "$container")
         if [[ "$current_mem" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
             total_memory=$(echo "$total_memory + $current_mem" | bc)
             samples=$((samples + 1))
@@ -200,8 +208,17 @@ while read -r CONTAINER; do
     current_mem_limit=$(get_memory_limit "$CONTAINER")
     current_buffer_pool=$(get_buffer_pool_size "$CONTAINER")
     
-    # Get memory stats
-    read -r max_mem avg_mem <<< "$(monitor_container "$CONTAINER")"
+    if [[ "$CURRENT_ONLY" == true ]]; then
+        # Get current memory usage only
+        current_mem=$(get_current_memory_usage "$CONTAINER")
+        max_mem=$current_mem
+        avg_mem=$current_mem
+    else
+        # Calculate number of samples
+        SAMPLES=$(( (DURATION * 60) / INTERVAL ))
+        # Get memory stats from monitoring
+        read -r max_mem avg_mem <<< "$(monitor_container "$CONTAINER")"
+    fi
     
     # Calculate suggested memory limit using bc
     suggested_limit=$(calculate_suggested_limit "$max_mem")
@@ -211,8 +228,12 @@ while read -r CONTAINER; do
     
     # Log results
     log "Memory Statistics for $CONTAINER:"
-    log "  Average Usage: ${avg_mem}MiB"
-    log "  Peak Usage: ${max_mem}MiB"
+    if [[ "$CURRENT_ONLY" == true ]]; then
+        log "  Current Usage: ${current_mem}MiB"
+    else
+        log "  Average Usage: ${avg_mem}MiB"
+        log "  Peak Usage: ${max_mem}MiB"
+    fi
     log ""
     log "Current Settings:"
     log "  Memory Limit: ${current_mem_limit}"
@@ -258,4 +279,8 @@ log "Total Suggested Memory Allocation: ${summary["total_suggested_memory"]}M"
 log "Net Memory Change: $(echo "${summary["total_suggested_memory"]} - ${summary["total_current_memory"]}" | bc)M"
 separator "="
 
-log "Monitoring complete. Full results saved to: $LOG_FILE" "INFO"
+if [[ "$CURRENT_ONLY" == true ]]; then
+    log "Current stats check complete. Full results saved to: $LOG_FILE" "INFO"
+else
+    log "Monitoring complete. Full results saved to: $LOG_FILE" "INFO"
+fi
