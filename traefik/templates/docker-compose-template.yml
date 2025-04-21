@@ -3,6 +3,9 @@ services:
     image: traefik:v3.2.0
     container_name: traefik
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
+    memswap_limit: -1
     security_opt:
       - no-new-privileges:true
     network_mode: host
