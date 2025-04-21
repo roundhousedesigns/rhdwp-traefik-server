@@ -16,7 +16,7 @@ DURATION=5
 INTERVAL=10
 QUIET=false
 CURRENT_ONLY=false
-LOG_DIR="$(dirname "$0")"
+LOG_DIR="$(dirname "$(dirname "$0")")" # Go up one level from tools to project root
 LOG_FILE="${LOG_DIR}/mariadb_memory_$(date +%Y%m%d_%H%M%S).log"
 TOTAL_CONTAINERS=0
 CURRENT_CONTAINER=0
@@ -46,16 +46,16 @@ show_help() {
 # Function to write to both console and log
 log() {
     local message=$1
-    local level=${2:-INFO}  # Default level is INFO
+    local level=${2:-INFO} # Default level is INFO
     local timestamp
     timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    
+
     # Format the message with timestamp and level
     local formatted_message="[$timestamp] [$level] $message"
-    
+
     # Write to log file
-    echo "$formatted_message" >> "$LOG_FILE"
-    
+    echo "$formatted_message" >>"$LOG_FILE"
+
     # Write to console if not in quiet mode
     if [[ "$QUIET" != true ]]; then
         echo "$message"
@@ -75,7 +75,7 @@ get_memory_limit() {
     local container=$1
     local mem_limit
     mem_limit=$(docker inspect "$container" --format '{{.HostConfig.Memory}}')
-    
+
     # Convert bytes to MB if limit exists
     if [[ "$mem_limit" != "0" ]]; then
         echo "$((mem_limit / 1024 / 1024))M"
@@ -88,12 +88,12 @@ get_memory_limit() {
 get_buffer_pool_size() {
     local container=$1
     local buffer_size
-    
+
     # Get database credentials from container environment
     local db_user=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MYSQL_USER= | cut -d= -f2)
     local db_pass=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MYSQL_PASSWORD= | cut -d= -f2)
     local db_root_pass=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MYSQL_ROOT_PASSWORD= | cut -d= -f2)
-    
+
     # Try with root password first, then user password
     if [[ -n "$db_root_pass" ]]; then
         buffer_size=$(docker exec "$container" mariadb -uroot -p"$db_root_pass" -N -B -e "SELECT @@innodb_buffer_pool_size;" 2>/dev/null)
@@ -102,7 +102,7 @@ get_buffer_pool_size() {
     else
         buffer_size=""
     fi
-    
+
     # Convert bytes to MB if value exists and is numeric
     if [[ -n "$buffer_size" ]] && [[ "$buffer_size" =~ ^[0-9]+$ ]]; then
         # Convert bytes to MB (divide by 1024*1024)
@@ -115,7 +115,7 @@ get_buffer_pool_size() {
         elif [[ -n "$db_user" && -n "$db_pass" ]]; then
             buffer_size=$(docker exec "$container" mariadb -u"$db_user" -p"$db_pass" -N -B -e "SHOW VARIABLES WHERE Variable_name = 'innodb_buffer_pool_size';" | awk '{print $2}' 2>/dev/null)
         fi
-        
+
         if [[ -n "$buffer_size" ]] && [[ "$buffer_size" =~ ^[0-9]+$ ]]; then
             local mb_size=$((buffer_size / 1048576))
             echo "${mb_size}M"
@@ -142,13 +142,16 @@ calculate_suggested_limit() {
 # Parse command line arguments
 while getopts "d:i:o:qch" opt; do
     case $opt in
-        d) DURATION=$OPTARG ;;
-        i) INTERVAL=$OPTARG ;;
-        o) LOG_FILE=$OPTARG ;;
-        q) QUIET=true ;;
-        c) CURRENT_ONLY=true ;;
-        h) show_help ;;
-        \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
+    d) DURATION=$OPTARG ;;
+    i) INTERVAL=$OPTARG ;;
+    o) LOG_FILE=$OPTARG ;;
+    q) QUIET=true ;;
+    c) CURRENT_ONLY=true ;;
+    h) show_help ;;
+    \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
     esac
 done
 
@@ -184,19 +187,19 @@ monitor_container() {
     local max_memory=0
     local samples=0
     local total_memory=0
-    
+
     # Monitor for specified duration
-    for ((i=1; i<=SAMPLES; i++)); do
+    for ((i = 1; i <= SAMPLES; i++)); do
         current_mem=$(get_current_memory_usage "$container")
         if [[ "$current_mem" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
             total_memory=$(echo "$total_memory + $current_mem" | bc)
             samples=$((samples + 1))
-            
+
             # Update max memory if current is higher
-            if (( $(echo "$current_mem > $max_memory" | bc -l) )); then
+            if (($(echo "$current_mem > $max_memory" | bc -l))); then
                 max_memory=$current_mem
             fi
-            
+
             # Show progress
             if [[ "$QUIET" != true ]]; then
                 printf "\rProgress: %d/%d samples" "$i" "$SAMPLES"
@@ -205,13 +208,13 @@ monitor_container() {
         sleep "$INTERVAL"
     done
     [[ "$QUIET" != true ]] && echo
-    
+
     # Calculate average memory usage
     local avg_memory=0
     if [[ $samples -gt 0 ]]; then
         avg_memory=$(echo "scale=2; $total_memory / $samples" | bc)
     fi
-    
+
     echo "$max_memory $avg_memory"
 }
 
@@ -228,11 +231,11 @@ while read -r CONTAINER; do
     separator "="
     log "Container $CURRENT_CONTAINER of $TOTAL_CONTAINERS: $CONTAINER" "INFO"
     separator "-"
-    
+
     # Get current settings
     current_mem_limit=$(get_memory_limit "$CONTAINER")
     current_buffer_pool=$(get_buffer_pool_size "$CONTAINER")
-    
+
     if [[ "$CURRENT_ONLY" == true ]]; then
         # Get current memory usage only
         current_mem=$(get_current_memory_usage "$CONTAINER")
@@ -240,17 +243,17 @@ while read -r CONTAINER; do
         avg_mem=$current_mem
     else
         # Calculate number of samples
-        SAMPLES=$(( (DURATION * 60) / INTERVAL ))
+        SAMPLES=$(((DURATION * 60) / INTERVAL))
         # Get memory stats from monitoring
-        read -r max_mem avg_mem <<< "$(monitor_container "$CONTAINER")"
+        read -r max_mem avg_mem <<<"$(monitor_container "$CONTAINER")"
     fi
-    
+
     # Calculate suggested memory limit using bc
     suggested_limit=$(calculate_suggested_limit "$max_mem")
-    
+
     # Calculate buffer pool size (60% of suggested limit)
     suggested_pool=$(echo "scale=0; $suggested_limit * 60 / 100" | bc)
-    
+
     # Log results
     log "Memory Statistics:"
     if [[ "$CURRENT_ONLY" == true ]]; then
@@ -267,24 +270,24 @@ while read -r CONTAINER; do
     log "Recommendations:"
     log "  Suggested mem_limit: ${suggested_limit}m"
     log "  Suggested --innodb_buffer_pool_size=${suggested_pool}M"
-    
+
     # Compare current vs suggested
     if [[ "$current_mem_limit" != "unlimited" ]]; then
         current_numeric=${current_mem_limit%M}
-        if (( $(echo "$suggested_limit > $current_numeric" | bc -l) )); then
+        if (($(echo "$suggested_limit > $current_numeric" | bc -l))); then
             ((summary["containers_need_increase"]++))
             log "⚠️  Warning: Memory increase recommended" "WARN"
             log "  Current: ${current_mem_limit}"
             log "  Recommended: ${suggested_limit}M"
             log "  Difference: +$(echo "$suggested_limit - $current_numeric" | bc)M"
-        elif (( $(echo "$suggested_limit < $current_numeric" | bc -l) )); then
+        elif (($(echo "$suggested_limit < $current_numeric" | bc -l))); then
             ((summary["containers_can_decrease"]++))
             log "💡 Note: Memory reduction possible" "INFO"
             log "  Current: ${current_mem_limit}"
             log "  Recommended: ${suggested_limit}M"
             log "  Potential savings: $(echo "$current_numeric - $suggested_limit" | bc)M"
         fi
-        
+
         # Update summary totals
         summary["total_current_memory"]=$(echo "${summary["total_current_memory"]} + $current_numeric" | bc)
         summary["total_suggested_memory"]=$(echo "${summary["total_suggested_memory"]} + $suggested_limit" | bc)

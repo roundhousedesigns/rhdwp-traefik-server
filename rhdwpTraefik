@@ -25,6 +25,12 @@ help() {
 	echo '  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron'
 	echo '  -l loglevel   Sets the log level'
 	echo '  -m dirname    Enable MySQL adminer dashboard for a project using the directory name.'
+	echo '  -M [opts]     Run MariaDB memory monitor tool with options:'
+	echo '                -d <duration>    Monitoring duration in minutes (default: 5)'
+	echo '                -i <interval>    Sampling interval in seconds (default: 10)'
+	echo '                -o <file>        Output log file'
+	echo '                -q               Quiet mode - only output to log file'
+	echo '                -c               Current stats only - skip monitoring period'
 	echo '  -n dirname    Create a new site stack'
 	echo '  -p            Enable Portainer at "https://portainer.HOST"'
 	echo '  -s            LetsEncrypt Staging server mode'
@@ -439,6 +445,22 @@ cleanUp() {
 	done
 }
 
+runMemoryMonitor() {
+    ## Run the MariaDB memory monitor tool
+    local monitor_script="${rootDir}/tools/mariadb_memory_monitor.sh"
+    
+    if [[ ! -x "$monitor_script" ]]; then
+        echo "Error: Memory monitor script not found or not executable: $monitor_script"
+        exit 1
+    fi
+    
+    echo "Running MariaDB memory monitor..."
+    
+    # Pass through any arguments after -M
+    shift $((OPTIND-1))
+    sudo -u "$user" "$monitor_script" "$@"
+}
+
 #########
 # Main ##
 #########
@@ -478,7 +500,7 @@ sanityChecks
 setupFiles
 
 ## Get options
-while getopts "habcdfkl:m:n:ps" opt; do
+while getopts "habcdfkl:m:Mn:ps" opt; do
 	case "$opt" in
 	h) # display help
 		help
@@ -522,7 +544,6 @@ while getopts "habcdfkl:m:n:ps" opt; do
 			echo "Invalid log level. Logging levels: ${_levels[*]}"
 			exit 1
 		fi
-
 		;;
 	m) # Enable adminer for a project
 		if [[ -z "$OPTARG" ]]; then
@@ -533,6 +554,10 @@ while getopts "habcdfkl:m:n:ps" opt; do
 			adminerVhost=${OPTARG}
 			echo "Adminer enabled for ${adminerVhost}"
 		fi
+		;;
+	M) # Run memory monitor
+		runMemoryMonitor "$@"
+		exit 0
 		;;
 	n) # Start a new site, and exit
 		if [[ -z "$OPTARG" ]]; then
