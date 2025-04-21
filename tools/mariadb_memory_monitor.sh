@@ -94,6 +94,14 @@ get_buffer_pool_size() {
     fi
 }
 
+# Function to calculate suggested memory limit
+calculate_suggested_limit() {
+    local max_mem=$1
+    # Use bc for floating point calculations
+    local suggested=$(echo "scale=0; ($max_mem * 1.5 + 255) / 256 * 256" | bc)
+    echo "$suggested"
+}
+
 # Parse command line arguments
 while getopts "d:i:o:qh" opt; do
     case $opt in
@@ -195,11 +203,11 @@ while read -r CONTAINER; do
     # Get memory stats
     read -r max_mem avg_mem <<< "$(monitor_container "$CONTAINER")"
     
-    # Round max memory to nearest 256MB
-    suggested_limit=$(( ((max_mem * 1.5 + 255) / 256) * 256 ))
+    # Calculate suggested memory limit using bc
+    suggested_limit=$(calculate_suggested_limit "$max_mem")
     
     # Calculate buffer pool size (60% of suggested limit)
-    suggested_pool=$((suggested_limit * 60 / 100))
+    suggested_pool=$(echo "scale=0; $suggested_limit * 60 / 100" | bc)
     
     # Log results
     log "Memory Statistics for $CONTAINER:"
@@ -217,23 +225,23 @@ while read -r CONTAINER; do
     # Compare current vs suggested
     if [[ "$current_mem_limit" != "unlimited" ]]; then
         current_numeric=${current_mem_limit%M}
-        if (( suggested_limit > current_numeric )); then
+        if (( $(echo "$suggested_limit > $current_numeric" | bc -l) )); then
             ((summary["containers_need_increase"]++))
             log "⚠️  Warning: Memory increase recommended" "WARN"
             log "  Current: ${current_mem_limit}"
             log "  Recommended: ${suggested_limit}M"
-            log "  Difference: +$((suggested_limit - current_numeric))M"
-        elif (( suggested_limit < current_numeric )); then
+            log "  Difference: +$(echo "$suggested_limit - $current_numeric" | bc)M"
+        elif (( $(echo "$suggested_limit < $current_numeric" | bc -l) )); then
             ((summary["containers_can_decrease"]++))
             log "💡 Note: Memory reduction possible" "INFO"
             log "  Current: ${current_mem_limit}"
             log "  Recommended: ${suggested_limit}M"
-            log "  Potential savings: $((current_numeric - suggested_limit))M"
+            log "  Potential savings: $(echo "$current_numeric - $suggested_limit" | bc)M"
         fi
         
         # Update summary totals
-        ((summary["total_current_memory"]+=current_numeric))
-        ((summary["total_suggested_memory"]+=suggested_limit))
+        summary["total_current_memory"]=$(echo "${summary["total_current_memory"]} + $current_numeric" | bc)
+        summary["total_suggested_memory"]=$(echo "${summary["total_suggested_memory"]} + $suggested_limit" | bc)
     fi
     log ""
 done < <(docker ps --filter "ancestor=mariadb" --format "{{.Names}}")
@@ -247,7 +255,7 @@ log "Containers Needing More Memory: ${summary["containers_need_increase"]}"
 log "Containers That Can Reduce Memory: ${summary["containers_can_decrease"]}"
 log "Total Current Memory Allocation: ${summary["total_current_memory"]}M"
 log "Total Suggested Memory Allocation: ${summary["total_suggested_memory"]}M"
-log "Net Memory Change: $(( summary["total_suggested_memory"] - summary["total_current_memory"] ))M"
+log "Net Memory Change: $(echo "${summary["total_suggested_memory"]} - ${summary["total_current_memory"]}" | bc)M"
 separator "="
 
 log "Monitoring complete. Full results saved to: $LOG_FILE" "INFO"
