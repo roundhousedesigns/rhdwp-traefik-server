@@ -16,7 +16,7 @@ DURATION=5
 INTERVAL=10
 QUIET=false
 CURRENT_ONLY=false
-LOG_DIR="$(dirname "$(dirname "$0")")"  # Go up one level from tools to project root
+LOG_DIR="$(dirname "$(dirname "$0")")" # Go up one level from tools to project root
 LOG_FILE="${LOG_DIR}/last-memory-audit.log"
 TOTAL_CONTAINERS=0
 CURRENT_CONTAINER=0
@@ -92,7 +92,8 @@ get_buffer_pool_size() {
     local buffer_size
 
     # Get the site directory from container labels
-    local site_dir=$(docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+    local site_dir
+    site_dir=$(docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
     local env_file="${site_dir}/.env"
 
     # Read credentials from site's .env file
