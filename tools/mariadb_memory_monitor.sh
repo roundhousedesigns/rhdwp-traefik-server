@@ -16,8 +16,8 @@ DURATION=5
 INTERVAL=10
 QUIET=false
 CURRENT_ONLY=false
-LOG_DIR="$(dirname "$0")"
-LOG_FILE="${LOG_DIR}/mariadb_memory_$(date +%Y%m%d_%H%M%S).log"
+LOG_DIR="$(dirname "$(dirname "$0")")"  # Go up one level from tools to project root
+LOG_FILE="${LOG_DIR}/last-memory-audit.log"
 TOTAL_CONTAINERS=0
 CURRENT_CONTAINER=0
 
@@ -47,14 +47,16 @@ show_help() {
 log() {
     local message=$1
     local level=${2:-INFO} # Default level is INFO
-    local timestamp
-    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
 
-    # Format the message with timestamp and level
-    local formatted_message="[$timestamp] [$level] $message"
+    # Format the message with level only
+    local formatted_message="[$level] $message"
 
-    # Write to log file
-    echo "$formatted_message" >>"$LOG_FILE"
+    # Write to log file (overwrite if first write, append otherwise)
+    if [[ ! -f "$LOG_FILE" ]]; then
+        echo "$formatted_message" >"$LOG_FILE"
+    else
+        echo "$formatted_message" >>"$LOG_FILE"
+    fi
 
     # Write to console if not in quiet mode
     if [[ "$QUIET" != true ]]; then
@@ -88,15 +90,32 @@ get_memory_limit() {
 get_buffer_pool_size() {
     local container=$1
     local buffer_size
-    # Get the raw value from MySQL
-    buffer_size=$(docker exec "$container" mysql -N -B -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';" | awk '{print $2}')
 
-    # Convert bytes to MB if value exists and is numeric
+    # Get the site directory from container labels
+    local site_dir=$(docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+    local env_file="${site_dir}/.env"
+
+    # Read credentials from site's .env file
+    if [[ -f "$env_file" ]]; then
+        local db_user
+        local db_pass
+        db_user=$(grep WORDPRESS_DB_USER= "$env_file" | cut -d= -f2)
+        db_pass=$(grep WORDPRESS_DB_PASSWORD= "$env_file" | cut -d= -f2)
+
+        # Get the buffer pool size using the database credentials
+        buffer_size=$(docker exec "$container" mariadb -u "$db_user" -p"$db_pass" -N -B -e "SELECT @@innodb_buffer_pool_size;" 2>&1)
+    else
+        log "Debug: .env file not found at $env_file" "DEBUG"
+        buffer_size=""
+    fi
+
+    # Check if we got a valid numeric value
     if [[ -n "$buffer_size" ]] && [[ "$buffer_size" =~ ^[0-9]+$ ]]; then
         # Convert bytes to MB (divide by 1024*1024)
         local mb_size=$((buffer_size / 1048576))
         echo "${mb_size}M"
     else
+        log "Debug: Failed to get buffer pool size for $container. Error: $buffer_size" "DEBUG"
         echo "unknown"
     fi
 }
@@ -112,7 +131,7 @@ calculate_suggested_limit() {
     local current_mem=$1
     # Use bc for floating point calculations
     local suggested
-    suggested=$(echo "scale=0; ($current_mem * 1.5 + 255) / 256 * 256" | bc)
+    suggested=$(echo "scale=2; ($current_mem * 1.5 + 255) / 256 * 256" | bc)
     echo "$suggested"
 }
 
@@ -182,6 +201,7 @@ monitor_container() {
             # Show progress
             if [[ "$QUIET" != true ]]; then
                 printf "\rProgress: %d/%d samples" "$i" "$SAMPLES"
+                printf " %-20s" "" # Clear any remaining characters
             fi
         fi
         sleep "$INTERVAL"
@@ -247,7 +267,7 @@ while read -r CONTAINER; do
     log "  InnoDB Buffer Pool: ${current_buffer_pool}"
     log ""
     log "Recommendations:"
-    log "  Suggested mem_limit: ${suggested_limit}m"
+    log "  Suggested mem_limit: ${suggested_limit}M"
     log "  Suggested --innodb_buffer_pool_size=${suggested_pool}M"
 
     # Compare current vs suggested
