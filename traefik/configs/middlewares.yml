@@ -9,7 +9,9 @@ http:
       headers:
         contentTypeNosniff: true
         browserXssFilter: true
-        referrerPolicy: "no-referrer"
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         stsPreload: true
+        # Strips HTTP_REFERER, among other things. Breaks some e-commerce using
+        # wp_get_referer() and $_SERVER['http_referer'].
+        # referrerPolicy: "no-referrer"
