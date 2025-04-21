@@ -16,7 +16,7 @@ DURATION=5
 INTERVAL=10
 QUIET=false
 CURRENT_ONLY=false
-LOG_DIR="$(dirname "$(dirname "$0")")" # Go up one level from tools to project root
+LOG_DIR="$(dirname "$0")"
 LOG_FILE="${LOG_DIR}/mariadb_memory_$(date +%Y%m%d_%H%M%S).log"
 TOTAL_CONTAINERS=0
 CURRENT_CONTAINER=0
@@ -88,20 +88,8 @@ get_memory_limit() {
 get_buffer_pool_size() {
     local container=$1
     local buffer_size
-
-    # Get database credentials from container environment
-    local db_user=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MYSQL_USER= | cut -d= -f2)
-    local db_pass=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MYSQL_PASSWORD= | cut -d= -f2)
-    local db_root_pass=$(docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep MYSQL_ROOT_PASSWORD= | cut -d= -f2)
-
-    # Try with root password first, then user password
-    if [[ -n "$db_root_pass" ]]; then
-        buffer_size=$(docker exec "$container" mariadb -uroot -p"$db_root_pass" -N -B -e "SELECT @@innodb_buffer_pool_size;" 2>/dev/null)
-    elif [[ -n "$db_user" && -n "$db_pass" ]]; then
-        buffer_size=$(docker exec "$container" mariadb -u"$db_user" -p"$db_pass" -N -B -e "SELECT @@innodb_buffer_pool_size;" 2>/dev/null)
-    else
-        buffer_size=""
-    fi
+    # Get the raw value from MySQL
+    buffer_size=$(docker exec "$container" mysql -N -B -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';" | awk '{print $2}')
 
     # Convert bytes to MB if value exists and is numeric
     if [[ -n "$buffer_size" ]] && [[ "$buffer_size" =~ ^[0-9]+$ ]]; then
@@ -109,19 +97,7 @@ get_buffer_pool_size() {
         local mb_size=$((buffer_size / 1048576))
         echo "${mb_size}M"
     else
-        # Try alternative method if first one fails
-        if [[ -n "$db_root_pass" ]]; then
-            buffer_size=$(docker exec "$container" mariadb -uroot -p"$db_root_pass" -N -B -e "SHOW VARIABLES WHERE Variable_name = 'innodb_buffer_pool_size';" | awk '{print $2}' 2>/dev/null)
-        elif [[ -n "$db_user" && -n "$db_pass" ]]; then
-            buffer_size=$(docker exec "$container" mariadb -u"$db_user" -p"$db_pass" -N -B -e "SHOW VARIABLES WHERE Variable_name = 'innodb_buffer_pool_size';" | awk '{print $2}' 2>/dev/null)
-        fi
-
-        if [[ -n "$buffer_size" ]] && [[ "$buffer_size" =~ ^[0-9]+$ ]]; then
-            local mb_size=$((buffer_size / 1048576))
-            echo "${mb_size}M"
-        else
-            echo "unknown"
-        fi
+        echo "unknown"
     fi
 }
 
@@ -135,7 +111,8 @@ get_current_memory_usage() {
 calculate_suggested_limit() {
     local current_mem=$1
     # Use bc for floating point calculations
-    local suggested=$(echo "scale=0; ($current_mem * 1.5 + 255) / 256 * 256" | bc)
+    local suggested
+    suggested=$(echo "scale=0; ($current_mem * 1.5 + 255) / 256 * 256" | bc)
     echo "$suggested"
 }
 
@@ -187,6 +164,8 @@ monitor_container() {
     local max_memory=0
     local samples=0
     local total_memory=0
+
+    log "Monitoring $container..." "INFO"
 
     # Monitor for specified duration
     for ((i = 1; i <= SAMPLES; i++)); do
@@ -255,7 +234,7 @@ while read -r CONTAINER; do
     suggested_pool=$(echo "scale=0; $suggested_limit * 60 / 100" | bc)
 
     # Log results
-    log "Memory Statistics:"
+    log "Memory Statistics for $CONTAINER:"
     if [[ "$CURRENT_ONLY" == true ]]; then
         log "  Current Usage: ${current_mem}MiB"
     else

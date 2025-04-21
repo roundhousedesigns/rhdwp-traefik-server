@@ -25,12 +25,7 @@ help() {
 	echo '  -k            Kill the server gracefully, and remove the wget cron jobs for wp_cron'
 	echo '  -l loglevel   Sets the log level'
 	echo '  -m dirname    Enable MySQL adminer dashboard for a project using the directory name.'
-	echo '  -M [opts]     Run MariaDB memory monitor tool with options:'
-	echo '                -d <duration>    Monitoring duration in minutes (default: 5)'
-	echo '                -i <interval>    Sampling interval in seconds (default: 10)'
-	echo '                -o <file>        Output log file'
-	echo '                -q               Quiet mode - only output to log file'
-	echo '                -c               Current stats only - skip monitoring period'
+	echo '  -M            Run MariaDB memory monitor tool'
 	echo '  -n dirname    Create a new site stack'
 	echo '  -p            Enable Portainer at "https://portainer.HOST"'
 	echo '  -s            LetsEncrypt Staging server mode'
@@ -60,9 +55,12 @@ sanityChecks() {
 ctrlC() {
 	## Peace out gracefully on interrupt
 
-	echo "** INTERRUPTING COW MOO **"
-	cleanUp
-	exit
+	# shellcheck disable=SC2317
+	{
+		echo "** INTERRUPTING COW MOO **"
+		cleanUp
+		exit
+	}
 }
 
 gitRepoNeedsUpdate() {
@@ -186,7 +184,7 @@ generateComposeFile() {
 	local _hosts="Host(\`\${VIRTUAL_HOST}\`) || Host(\`www.\${VIRTUAL_HOST}\`)"
 	if [[ -n "${ADDITIONAL_HOSTS}" ]]; then
 		# Split ADDITIONAL_HOSTS on commas and add each as a Host rule
-		IFS=',' read -ra ADDR <<< "${ADDITIONAL_HOSTS}"
+		IFS=',' read -ra ADDR <<<"${ADDITIONAL_HOSTS}"
 		for host in "${ADDR[@]}"; do
 			_hosts="${_hosts} || Host(\`${host}\`)"
 		done
@@ -200,7 +198,7 @@ generateComposeFile() {
 	_sans="${_sans}\""
 
 	cat "${templatesDir}/docker-compose-template.yml" >"$_composeFile"
-	
+
 	# Replace template variables
 	sed -i "s/%%hosts%%/${_hosts}/" "$_composeFile"
 	sed -i "s/%%sans%%/${_sans}/" "$_composeFile"
@@ -400,7 +398,7 @@ startStack() {
 		local retries=6
 		local i=0
 
-		while [[ "$defaultCerts" = false ]] && [[ "$i" < "$retries" ]]; do
+		while [[ "$defaultCerts" = false ]] && [[ "$i" -lt "$retries" ]]; do
 			if [[ "$i" -eq 0 ]]; then
 				echo "Checking host certificates..."
 			else
@@ -446,19 +444,18 @@ cleanUp() {
 }
 
 runMemoryMonitor() {
-    ## Run the MariaDB memory monitor tool
-    local monitor_script="${rootDir}/tools/mariadb_memory_monitor.sh"
-    
-    if [[ ! -x "$monitor_script" ]]; then
-        echo "Error: Memory monitor script not found or not executable: $monitor_script"
-        exit 1
-    fi
-    
-    echo "Running MariaDB memory monitor..."
-    
-    # Pass through any arguments after -M
-    shift $((OPTIND-1))
-    sudo -u "$user" "$monitor_script" "$@"
+	## Run the MariaDB memory monitor tool
+	local monitor_script="${rootDir}/tools/mariadb_memory_monitor.sh"
+	local args=("$@")
+
+	if [[ ! -x "$monitor_script" ]]; then
+		echo "Error: Memory monitor script not found or not executable: $monitor_script"
+		exit 1
+	fi
+
+	echo "Running MariaDB memory monitor..."
+	sudo -u "$user" "$monitor_script" "${args[@]}"
+	exit $?
 }
 
 #########
@@ -556,8 +553,8 @@ while getopts "habcdfkl:m:Mn:ps" opt; do
 		fi
 		;;
 	M) # Run memory monitor
+		shift $((OPTIND-1))
 		runMemoryMonitor "$@"
-		exit 0
 		;;
 	n) # Start a new site, and exit
 		if [[ -z "$OPTARG" ]]; then
