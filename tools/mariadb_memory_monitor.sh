@@ -90,33 +90,38 @@ get_memory_limit() {
 get_buffer_pool_size() {
     local container=$1
     local buffer_size
-
+    
     # Get the site directory from container labels
     local site_dir
     site_dir=$(docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
     local env_file="${site_dir}/.env"
-
+    
+    # Get WordPress scale from .env
+    local wp_scale=1
+    if [[ -f "$env_file" ]]; then
+        wp_scale=$(grep WORDPRESS_SCALE= "$env_file" | cut -d= -f2)
+        [[ -z "$wp_scale" ]] && wp_scale=1
+    fi
+    
     # Read credentials from site's .env file
     if [[ -f "$env_file" ]]; then
         local db_user
         local db_pass
         db_user=$(grep WORDPRESS_DB_USER= "$env_file" | cut -d= -f2)
         db_pass=$(grep WORDPRESS_DB_PASSWORD= "$env_file" | cut -d= -f2)
-
+        
         # Get the buffer pool size using the database credentials
         buffer_size=$(docker exec "$container" mariadb -u "$db_user" -p"$db_pass" -N -B -e "SELECT @@innodb_buffer_pool_size;" 2>&1)
     else
-        log "Debug: .env file not found at $env_file" "DEBUG"
         buffer_size=""
     fi
-
+    
     # Check if we got a valid numeric value
     if [[ -n "$buffer_size" ]] && [[ "$buffer_size" =~ ^[0-9]+$ ]]; then
         # Convert bytes to MB (divide by 1024*1024)
         local mb_size=$((buffer_size / 1048576))
         echo "${mb_size}M"
     else
-        log "Debug: Failed to get buffer pool size for $container. Error: $buffer_size" "DEBUG"
         echo "unknown"
     fi
 }
@@ -130,10 +135,31 @@ get_current_memory_usage() {
 # Function to calculate suggested memory limit
 calculate_suggested_limit() {
     local current_mem=$1
+    local wp_scale=$2
     # Use bc for floating point calculations
     local suggested
     suggested=$(echo "scale=2; ($current_mem * 1.5 + 255) / 256 * 256" | bc)
+    # Adjust for WordPress scale
+    suggested=$(echo "scale=2; $suggested * $wp_scale" | bc)
     echo "$suggested"
+}
+
+# Function to get WordPress scale
+get_wordpress_scale() {
+    local container=$1
+    local site_dir
+    local env_file
+    local wp_scale=1
+    
+    site_dir=$(docker inspect "$container" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+    env_file="${site_dir}/.env"
+    
+    if [[ -f "$env_file" ]]; then
+        wp_scale=$(grep WORDPRESS_SCALE= "$env_file" | cut -d= -f2)
+        [[ -z "$wp_scale" ]] && wp_scale=1
+    fi
+    
+    echo "$wp_scale"
 }
 
 # Parse command line arguments
@@ -235,6 +261,7 @@ while read -r CONTAINER; do
     # Get current settings
     current_mem_limit=$(get_memory_limit "$CONTAINER")
     current_buffer_pool=$(get_buffer_pool_size "$CONTAINER")
+    wp_scale=$(get_wordpress_scale "$CONTAINER")
 
     if [[ "$CURRENT_ONLY" == true ]]; then
         # Get current memory usage only
@@ -249,7 +276,7 @@ while read -r CONTAINER; do
     fi
 
     # Calculate suggested memory limit using bc
-    suggested_limit=$(calculate_suggested_limit "$max_mem")
+    suggested_limit=$(calculate_suggested_limit "$max_mem" "$wp_scale")
 
     # Calculate buffer pool size (60% of suggested limit)
     suggested_pool=$(echo "scale=0; $suggested_limit * 60 / 100" | bc)
@@ -266,6 +293,7 @@ while read -r CONTAINER; do
     log "Current Settings:"
     log "  Memory Limit: ${current_mem_limit}"
     log "  InnoDB Buffer Pool: ${current_buffer_pool}"
+    log "  WordPress Scale: ${wp_scale}"
     log ""
     log "Recommendations:"
     log "  Suggested mem_limit: ${suggested_limit}M"
