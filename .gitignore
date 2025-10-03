@@ -19,3 +19,7 @@ traefik/configs/*
 
 .wp-cli/*
 !.wp-cli/config.yml
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc
