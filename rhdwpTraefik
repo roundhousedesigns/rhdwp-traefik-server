@@ -1,11 +1,18 @@
-#!/bin/bash -e
-
+#!/bin/bash
 ##################
 ## rhdwpTraefik ##
 ##################
 #
 # Manages and configures the rhdwp site stack.
-#
+# Modernized version using shared libraries
+
+# Source shared libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/rhdwp-lib.sh" || source "/workspace/lib/rhdwp-lib.sh"
+source "${SCRIPT_DIR}/lib/rhdwp-config.sh" || source "/workspace/lib/rhdwp-config.sh"
+source "${SCRIPT_DIR}/lib/rhdwp-docker.sh" || source "/workspace/lib/rhdwp-docker.sh"
+source "${SCRIPT_DIR}/lib/rhdwp-cloudflare.sh" || source "/workspace/lib/rhdwp-cloudflare.sh"
+
 ##########
 ## help ##
 ##########
@@ -37,126 +44,159 @@ help() {
 ###############
 
 sanityChecks() {
-	## Check requried tools
-
+	## Check required tools
+	
 	## Sudo
-	echo "Checking sudo freshness..."
-	sudo echo "Done."
-
-	deps=(docker docker-compose)
-	for i in "${deps[@]}"; do
-		if ! hash "$i" 2>/dev/null; then
-			printf "Error: %s was not found in PATH. Please check that it's installed before proceeding.\n" "$i"
+	rhdwp_log_info "Checking sudo freshness..."
+	if ! sudo -n true 2>/dev/null; then
+		sudo echo "Done." || {
+			rhdwp_log_error "Sudo check failed"
+			exit 1
+		}
+	fi
+	
+	# Check required commands (docker compose plugin or docker-compose standalone)
+	if ! rhdwp_require_commands docker; then
+		rhdwp_log_error "Docker is required but not found"
+		exit 1
+	fi
+	
+	# Check for docker compose (plugin or standalone)
+	if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+		if ! command -v docker-compose >/dev/null 2>&1; then
+			rhdwp_log_error "Neither 'docker compose' plugin nor 'docker-compose' standalone found"
 			exit 1
 		fi
-	done
+	fi
+	
+	rhdwp_log_debug "Sanity checks passed"
 }
 
 ctrlC() {
 	## Peace out gracefully on interrupt
-
-	# shellcheck disable=SC2317
-	{
-		echo "** INTERRUPTING COW MOO **"
-		cleanUp
-		exit
-	}
+	rhdwp_log_warn "** INTERRUPTING COW MOO **"
+	cleanUp
+	exit 130
 }
 
 gitRepoNeedsUpdate() {
 	## Checks if a repository is out of date
-
-	git fetch
-	_headHash=$(git rev-parse HEAD)
-	#shellcheck disable=SC1083
-	_upstreamHash=$(git rev-parse main@{upstream})
-
-	# Return the result
-	[[ "$_headHash" != "$_upstreamHash" ]]
+	local repo_dir="${1:-.}"
+	
+	(
+		cd "$repo_dir" || return 1
+		git fetch >/dev/null 2>&1 || return 1
+		local _headHash
+		_headHash=$(git rev-parse HEAD)
+		#shellcheck disable=SC1083
+		local _upstreamHash
+		_upstreamHash=$(git rev-parse main@{upstream} 2>/dev/null || echo "")
+		
+		# Return the result
+		[[ -n "$_upstreamHash" ]] && [[ "$_headHash" != "$_upstreamHash" ]]
+	)
 }
 
 logs() {
 	## Set up log files
-
+	
 	# Clear first, if requested
 	if [[ "$clearLogs" = true ]]; then
-		sudo rm -rf -- "${logDir}"/*
+		rhdwp_log_info "Clearing log directory..."
+		rhdwp_run sudo rm -rf -- "${logDir}"/*
 	fi
-
+	
 	# Rotate logs and create a new file
 	if [[ -f "$logFile" ]]; then
-		sudo cp "$logFile" "$logFile.$(date +%F_%R)"
-		sudo truncate -s 0 "$logFile"
+		local rotated_file="${logFile}.$(date +%F_%R)"
+		rhdwp_run sudo cp "$logFile" "$rotated_file"
+		rhdwp_run sudo truncate -s 0 "$logFile"
+		rhdwp_log_debug "Rotated log file to: $rotated_file"
 	else
-		touch "$logFile"
+		rhdwp_run touch "$logFile"
 	fi
 }
 
 askEnv() {
-	## Verify .env values
-
-	# CloudFlare account email
-	while [[ -z "$CF_API_EMAIL" ]]; do
-		read -r -p "CloudFlare account email: " CF_API_EMAIL
-	done
-
-	# CloudFlare API Key
-	while [[ -z "$CF_API_KEY" ]]; do
-		read -r -p "CloudFlare API Key: " CF_API_KEY
-	done
-
-	# Mailgun API Key
-	while [[ -z "$MG_API_KEY" ]]; do
-		read -r -p "MailGun API Key: " MG_API_KEY
-	done
-
-	if [[ "$devMode" = true ]]; then
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_LOGIN" ]]; do
-			read -r -p "RHDEV SMTP Login (Mailgun): " DEV_SMTP_LOGIN
-		done
-
-		# Mailgun API Key
-		while [[ -z "$DEV_SMTP_PASS" ]]; do
-			read -r -p "RHDEV SMTP Pass (Mailgun): " DEV_SMTP_PASS
-		done
-
-		# SMTP login for dev mode
-		while [[ -z "$DEV_SMTP_FROM" ]]; do
-			read -r -p "RHDEV SMTP From: " DEV_SMTP_FROM
-		done
+	## Verify .env values using config library
+	
+	# Load existing config if available
+	if [[ -f "$envFile" ]]; then
+		rhdwp_load_env_file "$envFile" || true
 	fi
+	
+	# Prompt for missing values with appropriate validators
+	local required_keys=("CF_API_EMAIL" "CF_API_KEY" "MG_API_KEY")
+	
+	if [[ "$devMode" = true ]]; then
+		required_keys+=("DEV_SMTP_LOGIN" "DEV_SMTP_PASS" "DEV_SMTP_FROM")
+	fi
+	
+	# Prompt for each required key
+	for key in "${required_keys[@]}"; do
+		if ! rhdwp_has_config "$key"; then
+			case "$key" in
+				*EMAIL*)
+					value=$(rhdwp_prompt "CloudFlare account email" "" "rhdwp_validate_email")
+					rhdwp_set_config "$key" "$value"
+					;;
+				*KEY*|*PASS*|*SECRET*)
+					value=$(rhdwp_prompt_password "Enter $key" false)
+					rhdwp_set_config "$key" "$value"
+					;;
+				*LOGIN*|*FROM*)
+					value=$(rhdwp_prompt "Enter $key")
+					rhdwp_set_config "$key" "$value"
+					;;
+				*)
+					value=$(rhdwp_prompt "Enter $key")
+					rhdwp_set_config "$key" "$value"
+					;;
+			esac
+		fi
+	done
+	
+	# Export variables for backward compatibility
+	CF_API_EMAIL=$(rhdwp_get_config "CF_API_EMAIL")
+	CF_API_KEY=$(rhdwp_get_config "CF_API_KEY")
+	MG_API_KEY=$(rhdwp_get_config "MG_API_KEY")
+	DEV_SMTP_LOGIN=$(rhdwp_get_config "DEV_SMTP_LOGIN")
+	DEV_SMTP_PASS=$(rhdwp_get_config "DEV_SMTP_PASS")
+	DEV_SMTP_FROM=$(rhdwp_get_config "DEV_SMTP_FROM")
 }
 
 writeEnv() {
-	## Write to .env and lock it down
-
-	cat <<-EOT >"$envFile"
-		FQDN=$FQDN
-		HOSTNAME=$HOSTNAME
-		CF_API_EMAIL=$CF_API_EMAIL
-		CF_API_KEY=$CF_API_KEY
-		MG_API_KEY=$MG_API_KEY
-		DEV_SMTP_LOGIN=$DEV_SMTP_LOGIN
-		DEV_SMTP_PASS=$DEV_SMTP_PASS
-		DEV_SMTP_FROM=$DEV_SMTP_FROM
-		LOGLEVEL=$LOGLEVEL
-		DASHBOARD_AUTH=$DASHBOARD_AUTH
-	EOT
-
-	sudo chown "$serverUser":"$serverGroup" "$envFile"
-	sudo chmod 660 "$envFile"
+	## Write to .env and lock it down using config library
+	
+	# Set all config values
+	rhdwp_set_config "FQDN" "$FQDN"
+	rhdwp_set_config "HOSTNAME" "$HOSTNAME"
+	rhdwp_set_config "LOGLEVEL" "$LOGLEVEL"
+	rhdwp_set_config "DASHBOARD_AUTH" "${DASHBOARD_AUTH:-}"
+	
+	# Write to file
+	rhdwp_write_env_file "$envFile" || {
+		rhdwp_log_error "Failed to write environment file"
+		return 1
+	}
+	
+	# Set permissions
+	rhdwp_run sudo chown "$serverUser:$serverGroup" "$envFile"
+	rhdwp_run sudo chmod 660 "$envFile"
+	
+	rhdwp_log_debug "Environment file written: $envFile"
 }
 
 enableTemplateBlocks() {
 	## Enable a section in the composefile
 	# $1: (string) file
 	# $2: (array) $sections[@]
-
+	
 	local _file="$1" && shift
 	local _sections=("$@")
-
+	
 	for label in "${_sections[@]}"; do
+		rhdwp_log_debug "Enabling template block: $label"
 		sed -i "/## RHDWP: ${label} ##/,/## RHDWP: ${label} end ##/s/[^#]# / /g" "$_file"
 	done
 }
@@ -165,10 +205,12 @@ enableAdminerBlock() {
 	# Enable the Adminer service
 	# $1: (string) Compose file
 	# $2: (string) Virtual host to enable
-
+	
 	local _file="$1"
 	local _adminerVhost
-	_adminerVhost=$(echo "$adminerVhost" | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
+	_adminerVhost=$(rhdwp_sanitize_filename "$adminerVhost")
+	
+	rhdwp_log_debug "Enabling Adminer for: $_adminerVhost"
 	sed -i '/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/[^#]# / /g' "$_file"
 	sed -i "/## RHDWP: Adminer ##/,/## RHDWP: Adminer end ##/s/%%project_label%%/${_adminerVhost}/g" "$_file"
 }
@@ -178,141 +220,186 @@ generateComposeFile() {
 	local sections=()
 	local composeFile="${traefikDir}/docker-compose.yml"
 	local _composeFile
-	_composeFile=$(mktemp "${tempPrefix}.composeXXXXX")
-
+	_composeFile=$(rhdwp_temp_file "rhdwp.compose")
+	
+	rhdwp_log_info "Generating docker-compose.yml"
+	
 	# Build hosts rule
 	local _hosts="Host(\`\${VIRTUAL_HOST}\`) || Host(\`www.\${VIRTUAL_HOST}\`)"
-	if [[ -n "${ADDITIONAL_HOSTS}" ]]; then
+	if [[ -n "${ADDITIONAL_HOSTS:-}" ]]; then
 		# Split ADDITIONAL_HOSTS on commas and add each as a Host rule
 		IFS=',' read -ra ADDR <<<"${ADDITIONAL_HOSTS}"
 		for host in "${ADDR[@]}"; do
 			_hosts="${_hosts} || Host(\`${host}\`)"
 		done
 	fi
-
+	
 	# Build sans list
 	local _sans="- \"traefik.http.routers.\${PROJECT_LABEL}_wp-secure.tls.domains[0].sans=www.\${VIRTUAL_HOST}"
-	if [[ -n "${ADDITIONAL_HOSTS}" ]]; then
+	if [[ -n "${ADDITIONAL_HOSTS:-}" ]]; then
 		_sans="${_sans},${ADDITIONAL_HOSTS}"
 	fi
 	_sans="${_sans}\""
-
-	cat "${templatesDir}/docker-compose-template.yml" >"$_composeFile"
-
+	
+	# Copy template
+	rhdwp_require_file "${templatesDir}/docker-compose-template.yml" || {
+		rhdwp_log_error "Template file not found: ${templatesDir}/docker-compose-template.yml"
+		return 1
+	}
+	cp "${templatesDir}/docker-compose-template.yml" "$_composeFile"
+	
 	# Replace template variables
-	sed -i "s/%%hosts%%/${_hosts}/" "$_composeFile"
-	sed -i "s/%%sans%%/${_sans}/" "$_composeFile"
-
+	sed -i "s|%%hosts%%|${_hosts}|" "$_composeFile"
+	sed -i "s|%%sans%%|${_sans}|" "$_composeFile"
+	
 	# Conditionally add sections
 	if [[ "$buffering" = true ]]; then
 		sections+=('Buffering')
 	fi
-
+	
 	if [[ "$api" = true ]]; then
 		sections+=('API')
 	fi
-
+	
 	if [[ "$portainer" = true ]]; then
 		sections+=('Portainer')
 	fi
-
+	
 	if [[ "$certStaging" = true ]]; then
 		sections+=('Cert staging')
 	fi
-
-	enableTemplateBlocks "$_composeFile" "${sections[@]}"
-
+	
+	if [[ ${#sections[@]} -gt 0 ]]; then
+		enableTemplateBlocks "$_composeFile" "${sections[@]}"
+	fi
+	
 	# Enable adminer for specified project (using the stack's directory)
 	if [[ "$adminer" = true ]] && [[ -n "$adminerVhost" ]]; then
 		enableAdminerBlock "$_composeFile" "$adminerVhost"
 	fi
-
+	
+	# Move temp file to final location
 	mv "$_composeFile" "$composeFile"
-	chown "$user":"$user" "$composeFile"
+	chown "$user:$user" "$composeFile"
+	
+	rhdwp_log_info "Docker compose file generated: $composeFile"
 }
 
 enableTLSDefaultStore() {
 	## Check if host certificates have been generated, and if so,
 	##  uncomment the default store
-
+	
 	# Enable the TLS default store for the host
-	if [[ "$(checkDefaultCerts)" = true ]]; then
-		cat "${templatesDir}/certs-template.yml" >"$certsFile"
-		chown "$user":"$user" "$certsFile"
-
+	if checkDefaultCerts; then
+		rhdwp_require_file "${templatesDir}/certs-template.yml" || {
+			rhdwp_log_warn "Certs template not found, skipping TLS default store"
+			return 0
+		}
+		
+		cp "${templatesDir}/certs-template.yml" "$certsFile"
+		chown "$user:$user" "$certsFile"
+		
 		defaultCerts=true
+		rhdwp_log_info "TLS default store enabled for host certificates"
 	fi
-
 }
 
 checkDefaultCerts() {
 	## Check if default certs for this FQDN have been generated and stored
-
+	
 	if [[ -f "${certsDir}/certs/${FQDN}.crt" ]] && [[ -f "${certsDir}/private/${FQDN}.key" ]]; then
-		echo "true"
+		return 0
 	else
-		echo "false"
+		return 1
 	fi
 }
 
 setupFiles() {
+	## Setup required files and directories
+	
 	## LetsEncrypt storage
 	acme="${traefikDir}/acme.json"
 	if [[ ! -f "$acme" ]]; then
-		sudo touch "$acme"
-		sudo chown "$serverUser":"$serverGroup" "$acme"
-		sudo chmod 600 "$acme"
+		rhdwp_run sudo touch "$acme"
+		rhdwp_run sudo chown "$serverUser:$serverGroup" "$acme"
+		rhdwp_run sudo chmod 600 "$acme"
+		rhdwp_log_debug "Created ACME storage file"
 	fi
-
+	
 	## Environment variables file
 	envFile="${traefikDir}/.env"
 	if [[ -r "$envFile" ]]; then
 		# shellcheck disable=SC1091
 		# shellcheck source=/srv/rhdwp/traefik/.env
 		. "$envFile"
+		rhdwp_load_env_file "$envFile" || true
 	fi
-
+	
 	## Create sites directory
-	[[ ! -d "${wwwDir}" ]] && mkdir "${wwwDir}"
-
-	## Log file
-	[[ ! -d "$logDir" ]] && mkdir "$logDir"
-
+	[[ ! -d "${wwwDir}" ]] && mkdir -p "${wwwDir}"
+	
+	## Log file directory
+	[[ ! -d "$logDir" ]] && mkdir -p "$logDir"
+	
 	## Remove legacy error.log
-	[[ -f "${logDir}/error.log" ]] && rm "${logDir}/error.log"
-
+	[[ -f "${logDir}/error.log" ]] && rm -f "${logDir}/error.log"
+	
 	## wp-cli permissions
-	sudo chown -R "$serverUser":"$serverGroup" "${rootDir}/.wp-cli"
+	if [[ -d "${rootDir}/.wp-cli" ]]; then
+		rhdwp_run sudo chown -R "$serverUser:$serverGroup" "${rootDir}/.wp-cli"
+	fi
 }
 
 runSiteScripts() {
 	## Run rhdwpStack in each site directory
-
+	
+	rhdwp_log_info "Freshening site stacks..."
+	
 	for d in "${wwwDir}"/*; do
-		dir="${d##*/}"
-		_flags=" -q"
-		_branch=
-
+		[[ ! -d "$d" ]] && continue
+		
+		local dir="${d##*/}"
+		local _flags=" -q"
+		local _branch
+		
 		(
-			cd "$d"
-
-			_branch=$(git rev-parse --abbrev-ref HEAD)
-
-			if gitRepoNeedsUpdate; then
+			cd "$d" || continue
+			
+			# Check if it's a git repository
+			if [[ ! -d .git ]]; then
+				rhdwp_log_debug "Skipping $dir: not a git repository"
+				continue
+			fi
+			
+			_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+			
+			if gitRepoNeedsUpdate "$d"; then
 				# Update and rebuild
-				echo "UPDATE $dir"
-
+				rhdwp_log_info "UPDATE $dir"
+				
 				# Check for main branch
 				if [[ "$_branch" != "main" ]]; then
-					git checkout main
+					git checkout main || {
+						rhdwp_log_warn "Failed to checkout main branch in $dir"
+						continue
+					}
 				fi
-
-				git pull -q
+				
+				git pull -q || {
+					rhdwp_log_warn "Failed to pull updates for $dir"
+					continue
+				}
 			fi
-
-			# Run
-			# shellcheck disable=SC2086
-			sudo -u "$user" ./rhdwpStack $_flags
+			
+			# Run rhdwpStack if it exists
+			if [[ -x "./rhdwpStack" ]]; then
+				# shellcheck disable=SC2086
+				sudo -u "$user" ./rhdwpStack $_flags || {
+					rhdwp_log_warn "rhdwpStack failed for $dir"
+				}
+			else
+				rhdwp_log_debug "Skipping $dir: rhdwpStack not found or not executable"
+			fi
 		)
 	done
 }
@@ -321,46 +408,56 @@ installCron() {
 	## Installs the cron.d script to make sure Traefik is started @reboot. Overwrites existing file!
 	local cronMsg="## Make sure Traefik restarts on reboot"
 	local cronJob="@reboot root ${rootDir}/rhdwpTraefik"
-
-	sudo touch "$cronFile"
-	sudo chown root:root "$cronFile"
-	sudo chmod 600 "$cronFile"
-	printf '%s\n%s' "$cronMsg" "$cronJob" | sudo tee "$cronFile" >/dev/null
+	
+	rhdwp_log_info "Installing cron job for Traefik restart"
+	
+	rhdwp_run sudo touch "$cronFile"
+	rhdwp_run sudo chown root:root "$cronFile"
+	rhdwp_run sudo chmod 600 "$cronFile"
+	printf '%s\n%s' "$cronMsg" "$cronJob" | rhdwp_run sudo tee "$cronFile" >/dev/null
+	
+	rhdwp_log_debug "Cron file installed: $cronFile"
 }
 
 uninstallCron() {
-	## Removes up the cron.d entry
-	sudo rm -f "$cronFile"
+	## Removes the cron.d entry
+	rhdwp_log_info "Uninstalling cron job"
+	
+	if [[ -f "$cronFile" ]]; then
+		rhdwp_run sudo rm -f "$cronFile"
+		rhdwp_log_debug "Cron file removed: $cronFile"
+	fi
 }
 
 checkPortainerDNS() {
-	## Check CloudFlare for "portainer" and "edge" CNAME entries
+	## Check CloudFlare for "portainer" and "edge" CNAME entries using CloudFlare library
+	
+	rhdwp_log_info "Setting up Portainer DNS entries"
+	
 	local cnames=("portainer" "edge")
 	local tld
-	tld=$(echo "$FQDN" | grep -o '[^.]*\.[^.]*$')
-
-	# GET ZONE ID
-	cf_zone=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${tld}&status=active&match=all" \
-		-H "X-Auth-Email: ${CF_API_EMAIL}" \
-		-H "X-Auth-Key: ${CF_API_KEY}" \
-		-H "Content-Type: application/json")
-
-	cf_zone_id=$(jq -r ".result[0].id" <<<"$cf_zone")
-
-	# CREATE DNS ENTRIES
-	# Domain verification records
-	for record in "${cnames[@]}"; do
-		(
-			cfZoneApiUrl="https://api.cloudflare.com/client/v4/zones/${cf_zone_id}/dns_records"
-
-			# Skip adding Mailgun CNAME (tracking) entry to CloudFlare
-			curl -s -X POST "$cfZoneApiUrl" \
-				-H "X-Auth-Email: ${CF_API_EMAIL}" \
-				-H "X-Auth-Key: ${CF_API_KEY}" \
-				-H "Content-Type: application/json" \
-				--data '{"type":"CNAME","name":'\""${record}.$(hostname)\""',"content":'\""${FQDN}\""',"ttl":1,"proxied":false}' >/dev/null
-		)
-	done
+	tld=$(rhdwp_cf_extract_tld "$FQDN")
+	
+	# Initialize CloudFlare API
+	rhdwp_init_cloudflare "$CF_API_EMAIL" "$CF_API_KEY" || {
+		rhdwp_log_error "Failed to initialize CloudFlare API"
+		return 1
+	}
+	
+	# Get zone ID
+	local zone_id
+	zone_id=$(rhdwp_cf_get_zone_id "$tld") || {
+		rhdwp_log_error "Failed to get CloudFlare zone ID for $tld"
+		return 1
+	}
+	
+	# Create CNAME records
+	rhdwp_cf_create_cnames "$zone_id" "$(hostname)" "${cnames[@]}" || {
+		rhdwp_log_error "Failed to create Portainer DNS entries"
+		return 1
+	}
+	
+	rhdwp_log_info "Portainer DNS entries created successfully"
 }
 
 newSite() {
@@ -368,77 +465,118 @@ newSite() {
 	# $1: the stack directory name (domain)
 	local dir="$1"
 	local sitePath="${wwwDir}/${dir}"
-
+	
 	# Sanity check
 	if [[ -z "$dir" ]]; then
-		echo "No directory name supplied."
+		rhdwp_log_error "No directory name supplied"
 		exit 1
 	fi
-
+	
+	# Validate directory name
+	if [[ -d "$sitePath" ]]; then
+		rhdwp_log_error "Site directory already exists: $sitePath"
+		exit 1
+	fi
+	
+	rhdwp_log_info "Creating new site stack: $dir"
+	
 	# Spin up the stack
 	(
-		git clone git@github.com:roundhousedesigns/rhdwp "${sitePath}"
-		mkdir -p "$sitePath"/database/{data,initdb.d}
+		git clone git@github.com:roundhousedesigns/rhdwp "$sitePath" || {
+			rhdwp_log_error "Failed to clone repository"
+			exit 1
+		}
+		mkdir -p "$sitePath/database/{data,initdb.d}"
+		rhdwp_log_info "Site stack created: $sitePath"
 	)
 }
 
 startStack() {
 	## Pull freshest images and start the stack
-
+	
+	rhdwp_log_info "Starting Traefik stack"
+	
 	(
-		cd "$traefikDir"
-
-		docker compose pull -q
-		(docker compose down -v --remove-orphans || true)
-		docker compose up -d --remove-orphans
-
-		# If no certs were present during startup, wait 5 seconds for generation
-		#  and restart Traefik if generation occured (generally, first time startup)
-		# FIXME This doesn't seem to be working...
-		local retries=6
-		local i=0
-
-		while [[ "$defaultCerts" = false ]] && [[ "$i" -lt "$retries" ]]; do
-			if [[ "$i" -eq 0 ]]; then
-				echo "Checking host certificates..."
-			else
-				echo "-->retrying in 5 seconds..." && sleep 5
-			fi
-
-			if [[ "$(checkDefaultCerts)" = true ]]; then
-				echo
-				echo "Host certificates generated, host TLS enabled."
-				echo
-
-				enableTLSDefaultStore
-				docker compose restart
-			else
-				((++i))
-
-				[[ "$i" = "$retries" ]] && echo "Host certificate not generated or not found, using default self-signed certificate."
-			fi
-		done
+		cd "$traefikDir" || {
+			rhdwp_log_error "Failed to change to Traefik directory"
+			return 1
+		}
+		
+		# Pull images
+		rhdwp_docker_compose_pull "$traefikDir" "-q" || {
+			rhdwp_log_warn "Some images failed to pull"
+		}
+		
+		# Stop existing stack
+		rhdwp_docker_compose_down "$traefikDir" "-v" "--remove-orphans" || true
+		
+		# Start stack
+		rhdwp_docker_compose_up "$traefikDir" "-d" "--remove-orphans" || {
+			rhdwp_log_error "Failed to start stack"
+			return 1
+		}
+		
+		# If no certs were present during startup, wait and check for generation
+		# (generally, first time startup)
+		if [[ "$defaultCerts" = false ]]; then
+			local retries=6
+			local i=0
+			
+			while [[ $i -lt $retries ]]; do
+				if [[ $i -eq 0 ]]; then
+					rhdwp_log_info "Checking host certificates..."
+				else
+					rhdwp_log_info "Retrying in 5 seconds... ($i/$retries)"
+					sleep 5
+				fi
+				
+				if checkDefaultCerts; then
+					rhdwp_log_info "Host certificates generated, enabling TLS default store"
+					enableTLSDefaultStore
+					rhdwp_docker_compose_restart "$traefikDir" || {
+						rhdwp_log_warn "Failed to restart Traefik after certificate generation"
+					}
+					break
+				else
+					((++i))
+					if [[ $i -eq $retries ]]; then
+						rhdwp_log_warn "Host certificate not generated or not found, using default self-signed certificate"
+					fi
+				fi
+			done
+		fi
 	)
+	
+	rhdwp_log_info "Traefik stack started"
 }
 
 stopStack() {
 	## Stop the main traefik stack and clean up
-	(cd "$traefikDir" && docker compose down --remove-orphans -v)
-
-	# Remove the certs.yml file.
-	[[ -f "$certsFile" ]] && rm "$certsFile"
-
+	
+	rhdwp_log_info "Stopping Traefik stack"
+	
+	rhdwp_docker_compose_down "$traefikDir" "--remove-orphans" "-v" || {
+		rhdwp_log_warn "Some containers may not have stopped cleanly"
+	}
+	
+	# Remove the certs.yml file
+	if [[ -f "$certsFile" ]]; then
+		rm -f "$certsFile"
+		rhdwp_log_debug "Removed certs file: $certsFile"
+	fi
+	
 	uninstallCron
+	
+	rhdwp_log_info "Traefik stack stopped"
 }
 
 cleanUp() {
 	## Stop worrying where you're going
-
-	echo "Cleaning up..."
-
+	rhdwp_log_debug "Cleaning up temporary files"
+	
 	for f in "${tempPrefix}"*; do
 		if [[ -e "$f" ]]; then
-			sudo rm "$f"
+			rhdwp_run sudo rm -f "$f"
 		fi
 	done
 }
@@ -447,24 +585,27 @@ runMemoryMonitor() {
 	## Run the MariaDB memory monitor tool
 	local monitor_script="${rootDir}/tools/mariadb_memory_monitor.sh"
 	local args=("$@")
-
+	
 	if [[ ! -x "$monitor_script" ]]; then
-		echo "Error: Memory monitor script not found or not executable: $monitor_script"
+		rhdwp_log_error "Memory monitor script not found or not executable: $monitor_script"
 		exit 1
 	fi
-
-	echo "Running MariaDB memory monitor..."
+	
+	rhdwp_log_info "Running MariaDB memory monitor..."
 	sudo -u "$user" "$monitor_script" "${args[@]}"
 	exit $?
+}
+
+# Override cleanup function from library
+rhdwp_cleanup() {
+	cleanUp
 }
 
 #########
 # Main ##
 #########
-## Trap ctrl+c
-trap ctrlC INT
 
-## Initialize variables
+# Initialize variables (before library init to avoid strict mode issues)
 FQDN=$(hostname -f)
 HOSTNAME=$(hostname)
 rootDir="$(dirname "$(realpath "$0")")"
@@ -492,6 +633,15 @@ LOGLEVEL=ERROR
 clearLogs=false
 buffering=false
 
+# Initialize library (but don't enable strict mode yet - we need to handle options first)
+rhdwp_init "rhdwpTraefik"
+# Disable strict mode temporarily for option parsing
+set +euo pipefail
+trap - ERR
+
+## Trap ctrl+c
+trap ctrlC INT TERM
+
 ## Before we begin...
 sanityChecks
 setupFiles
@@ -504,30 +654,30 @@ while getopts "habcdfkl:m:Mn:ps" opt; do
 		exit 0
 		;;
 	a) # API/Dashboard enabled
-		echo "Dashboard enabled."
+		rhdwp_log_info "Dashboard enabled"
 		api=true
 		;;
 	b) # Large upload/buffer support
-		echo "Large upload/buffer support enabled."
+		rhdwp_log_info "Large upload/buffer support enabled"
 		buffering=true
 		;;
 	c) # Cleanup logs
 		clearLogs=true
 		;;
 	d) # Development mode
-		echo "Development mode enabled."
+		rhdwp_log_info "Development mode enabled"
 		devMode=true
 		api=true
 		;;
 	f) # Freshen sites (www/ site stacks)
-		echo "Freshen sites"
+		rhdwp_log_info "Freshen sites"
 		runSiteScripts
-		exit
+		exit 0
 		;;
 	k) # Kill the server and cleanup
-		echo "Stopping main server and cleaning up..."
+		rhdwp_log_info "Stopping main server and cleaning up..."
 		stopStack
-		echo "Done."
+		rhdwp_log_info "Done"
 		exit 0
 		;;
 	l) # Log level
@@ -536,20 +686,20 @@ while getopts "habcdfkl:m:Mn:ps" opt; do
 		_levels=(DEBUG PANIC FATAL ERROR WARN INFO)
 		if [[ ${_levels[*]} =~ ${_log} ]]; then
 			LOGLEVEL="$_log"
-			echo "Log level: $LOGLEVEL"
+			rhdwp_set_log_level "$LOGLEVEL"
 		else
-			echo "Invalid log level. Logging levels: ${_levels[*]}"
+			rhdwp_log_error "Invalid log level. Logging levels: ${_levels[*]}"
 			exit 1
 		fi
 		;;
 	m) # Enable adminer for a project
 		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -m option requires a docker network prefix (example: abccom)."
+			rhdwp_log_error "The -m option requires a docker network prefix (example: abccom)"
 			exit 1
 		else
 			adminer=true
 			adminerVhost=${OPTARG}
-			echo "Adminer enabled for ${adminerVhost}"
+			rhdwp_log_info "Adminer enabled for ${adminerVhost}"
 		fi
 		;;
 	M) # Run memory monitor
@@ -558,50 +708,59 @@ while getopts "habcdfkl:m:Mn:ps" opt; do
 		;;
 	n) # Start a new site, and exit
 		if [[ -z "$OPTARG" ]]; then
-			echo "Error: The -n option requires an argument (directory name)."
+			rhdwp_log_error "The -n option requires an argument (directory name)"
 			exit 1
 		else
-			echo "Creating www/${OPTARG}"
+			rhdwp_log_info "Creating www/${OPTARG}"
 			newSite "${OPTARG}"
 			exit 0
 		fi
 		;;
 	p) # Enable Portainer
 		if [[ -z "$CF_API_KEY" ]] || [[ -z "$CF_API_EMAIL" ]]; then
-			# Notify of the missing values, and skip.
+			# Notify of the missing values, and skip
 			if [[ -z "$CF_API_KEY" ]]; then
-				echo "CloudFlare API KEY not found. Skipping Portainer..."
+				rhdwp_log_warn "CloudFlare API KEY not found. Skipping Portainer..."
 			fi
 			if [[ -z "$CF_API_EMAIL" ]]; then
-				echo "CloudFlare API Email not found. Skipping Portainer..."
+				rhdwp_log_warn "CloudFlare API Email not found. Skipping Portainer..."
 			fi
-
+			
 			portainer=false
 		else
 			portainer=true
-			checkPortainerDNS
+			checkPortainerDNS || {
+				rhdwp_log_warn "Failed to setup Portainer DNS, continuing anyway"
+			}
 		fi
 		;;
 	s) # LetsEncrypt staging mode
-		echo
-		echo "*** LetsEncrypt STAGING ***"
-		echo
+		rhdwp_log_warn "*** LetsEncrypt STAGING MODE ***"
 		certStaging=true
 		;;
 	\?) # invalid option
-		echo "Invalid option: -$OPTARG" >&2
+		rhdwp_log_error "Invalid option: -$OPTARG"
 		exit 1
 		;;
 	esac
 done
 
+# Re-enable strict mode for main execution
+rhdwp_setup_error_handling
+
 ## Setup logs
 logs
 
+## Initialize Docker
+rhdwp_init_docker || {
+	rhdwp_log_error "Docker initialization failed"
+	exit 1
+}
+
 ## Create web network
-if ! docker network ls | grep -q "$network"; then
-	docker network create "$network" || true
-fi
+rhdwp_docker_network_create "$network" || {
+	rhdwp_log_warn "Failed to create network, may already exist"
+}
 
 ## Retrieve or prompt for environment variables, and export to .env
 askEnv
@@ -616,7 +775,7 @@ else
 	installCron
 fi
 
-## Enable Development Mode
+## Generate compose file
 generateComposeFile
 
 ## Generate traefik options file
@@ -628,4 +787,5 @@ startStack
 ## Don't be a slob
 cleanUp
 
+rhdwp_log_info "Traefik setup complete"
 exit 0
