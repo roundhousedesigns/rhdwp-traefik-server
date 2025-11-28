@@ -1,6 +1,7 @@
 .vscode
 .cache
 
+archive
 archive/
 archived/
 www/*
