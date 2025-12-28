@@ -1,0 +1,79 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.external-url=https://${FQDN}/prometheus/
+      - --web.route-prefix=/
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.prometheus.entrypoints=http"
+      - "traefik.http.routers.prometheus.rule=Host(`${FQDN}`) && PathPrefix(`/prometheus`) && !Path(`/prometheus/api/v1/targets`)"
+      - "traefik.http.routers.prometheus.tls=true"
+      - "traefik.http.routers.prometheus.tls.certresolver=cloudflare"
+      - "traefik.http.routers.prometheus.middlewares=security-headers@file,strip-monitoring-prefix@file"
+      - "traefik.http.middlewares.prometheus-strip.stripPrefixRegex.regex=^/prometheus(.*)$"
+      - "traefik.http.routers.prometheus.middlewares=prometheus-strip,security-headers@file"
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --web.external-url=https://${FQDN}/alertmanager/
+      - --web.route-prefix=/
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.alertmanager.entrypoints=https"
+      - "traefik.http.routers.alertmanager.rule=Host(`${FQDN}`) && PathPrefix(`/alertmanager`)"
+      - "traefik.http.routers.alertmanager.tls=true"
+      - "traefik.http.routers.alertmanager.tls.certresolver=cloudflare"
+      - "traefik.http.middlewares.alertmanager-strip.stripPrefixRegex.regex=^/alertmanager(.*)$"
+      - "traefik.http.routers.alertmanager.middlewares=alertmanager-strip,security-headers@file"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    environment:
+      - GF_SERVER_ROOT_URL=https://${FQDN}/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.grafana.entrypoints=https"
+      - "traefik.http.routers.grafana.rule=Host(`${FQDN}`) && PathPrefix(`/grafana`)"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=cloudflare"
+      - "traefik.http.middlewares.grafana-strip.stripPrefixRegex.regex=^/grafana(.*)$"
+      - "traefik.http.routers.grafana.middlewares=grafana-strip,security-headers@file"
+
+networks:
+  web:
+    external: true
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:

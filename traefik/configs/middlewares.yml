@@ -15,3 +15,10 @@ http:
         # Strips HTTP_REFERER, among other things. Breaks some e-commerce using
         # wp_get_referer() and $_SERVER['http_referer'].
         # referrerPolicy: "no-referrer"
+
+    strip-monitoring-prefix:
+      stripPrefix:
+        prefixes:
+          - /prometheus
+          - /grafana
+          - /alertmanager

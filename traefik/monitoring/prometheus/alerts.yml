@@ -1,0 +1,29 @@
+groups:
+  - name: traefik-basics
+    rules:
+      - alert: TraefikDown
+        expr: up{job="traefik"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Traefik is down
+          description: No metrics scraped from Traefik at ${FQDN}/metrics
+
+      - alert: High5xxRate
+        expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) by (service) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: High 5xx rate from services
+          description: More than 1 req/sec 5xx over 10m.
+
+      - alert: BackendDown
+        expr: min_over_time(traefik_service_server_up[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: A Traefik backend server is down
+          description: Service server reported down by Traefik.
