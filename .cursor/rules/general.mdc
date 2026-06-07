@@ -6,8 +6,38 @@ alwaysApply: true
 
 # General Information
 
+## Summary
+
 This project is a Traefik proxy which handles any number of WordPress sites using Docker Compose. Each WordPress stack is composed of: - An apache container - A PHP-FPM container - A MariaDB container - A WordPress container - A WP-CLI container
 
 The Traefik docker-compose.yml file is located in the `traefik/` directory and is used to configure the Traefik proxy. It is generated from the `traefik/templates/docker-compose-template.yml` file using the `rhdwpTraefik` script.
 
 The WordPress sites are located in the `www/` directory and are each composed of: - A docker-compose.yml file and template - A site-files/ directory - A database/ directory
+
+## Structure
+
+.
+├── changelog
+├── last-memory-audit.log
+├── lib
+│   └── rhdwpCron.sh
+├── README.md
+├── rhdwpTraefik
+├── todo.md
+├── tools
+│   └── mariadb_memory_monitor.sh
+├── traefik    <---- (Traefik docker stack and config)
+│   ├── acme.json    <---- Domain SSL certificates
+│   ├── certs            <---- Exported certs
+│   ├── configs
+│   ├── docker-compose.yml
+│   ├── host
+│   ├── log
+│   └── templates
+└── www        <---- (Individual live site stacks)
+    ├── dev.artny.roundhouse-designs.com
+    ├── dev.broadwayradio.roundhouse-designs.com
+    ├── dev.risetheatre.org
+    ├── dev.safd.roundhouse-designs.com
+    ├── dev.sandbox.roundhouse-designs.com    <---- (Development folder for site stacks.)
+    └── dev.si.roundhouse-designs.com
