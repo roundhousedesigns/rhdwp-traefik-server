@@ -41,3 +41,18 @@ The WordPress sites are located in the `www/` directory and are each composed of
     ├── dev.safd.roundhouse-designs.com
     ├── dev.sandbox.roundhouse-designs.com    <---- (Development folder for site stacks.)
     └── dev.si.roundhouse-designs.com
+
+## Site Stack structure
+
+/srv/rhdwp/www/[domain]
+.
+├── changelog
+├── conf.d     <---- PHP and nginx config files
+├── database
+├── docker-compose-template.yml
+├── docker-compose.yml
+├── extra      <---- Backups and detritus
+├── private
+├── README.md
+├── rhdwpStack <---- Orchestrator script
+└── site_files <---- WordPress install
