@@ -14,7 +14,7 @@ help() {
 	## Display help
 	echo 'Generates a docker-compose.yml configuration for the RHDWP stack.'
 	echo
-	echo 'Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-s][-k]'
+	echo 'Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-n dirname][-N dirname][-s][-k]'
 	echo
 	echo '  -h            Help and usage'
 	echo '  -a            Enable dashboard'
@@ -26,7 +26,8 @@ help() {
 	echo '  -l loglevel   Sets the log level'
 	echo '  -m dirname    Enable MySQL adminer dashboard for a project using the directory name.'
 	echo '  -M            Run MariaDB memory monitor tool'
-	echo '  -n dirname    Create a new site stack'
+	echo '  -n dirname    Create a new WordPress site stack'
+	echo '  -N dirname    Create a new static HTML site stack (rhdwp-static)'
 	echo '  -p            Enable Portainer at "https://portainer.HOST"'
 	echo '  -s            LetsEncrypt Staging server mode'
 	echo
@@ -382,6 +383,68 @@ newSite() {
 	)
 }
 
+newStaticSite() {
+	## Create a new static HTML stack in www/
+	# $1: the stack directory name (domain)
+	local dir="$1"
+	local sitePath="${wwwDir}/${dir}"
+	local virtualHost projectLabel defaultLabel
+	local certResolver="cloudflare"
+
+	if [[ -z "$dir" ]]; then
+		echo "No directory name supplied."
+		exit 1
+	fi
+
+	if [[ -e "$sitePath" ]]; then
+		echo "Error: ${sitePath} already exists."
+		exit 1
+	fi
+
+	echo "Cloning roundhousedesigns/rhdwp-static into www/${dir}..."
+	git clone git@github.com:roundhousedesigns/rhdwp-static "${sitePath}"
+
+	# Same idea as rhdwpStack getProjectLabel: strip final TLD, keep lowercase alnum
+	defaultLabel=$(echo "${dir%.*}" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+	[[ -z "$defaultLabel" ]] && defaultLabel="static"
+
+	read -r -p "VIRTUAL_HOST [${dir}]: " virtualHost
+	virtualHost="${virtualHost:-$dir}"
+
+	read -r -p "PROJECT_LABEL [${defaultLabel}]: " projectLabel
+	projectLabel="${projectLabel:-$defaultLabel}"
+
+	if [[ -f "${sitePath}/.env.example" ]]; then
+		cp "${sitePath}/.env.example" "${sitePath}/.env"
+		if grep -q '^VIRTUAL_HOST=' "${sitePath}/.env"; then
+			sed -i -E "s|^VIRTUAL_HOST=.*|VIRTUAL_HOST=${virtualHost}|" "${sitePath}/.env"
+		else
+			echo "VIRTUAL_HOST=${virtualHost}" >>"${sitePath}/.env"
+		fi
+		if grep -q '^PROJECT_LABEL=' "${sitePath}/.env"; then
+			sed -i -E "s|^PROJECT_LABEL=.*|PROJECT_LABEL=${projectLabel}|" "${sitePath}/.env"
+		else
+			echo "PROJECT_LABEL=${projectLabel}" >>"${sitePath}/.env"
+		fi
+		if grep -q '^CERT_RESOLVER=' "${sitePath}/.env"; then
+			sed -i -E "s|^CERT_RESOLVER=.*|CERT_RESOLVER=${certResolver}|" "${sitePath}/.env"
+		else
+			echo "CERT_RESOLVER=${certResolver}" >>"${sitePath}/.env"
+		fi
+	else
+		cat >"${sitePath}/.env" <<EOF
+PROJECT_LABEL=${projectLabel}
+VIRTUAL_HOST=${virtualHost}
+CERT_RESOLVER=${certResolver}
+EOF
+	fi
+
+	echo
+	echo "Static site scaffolded at ${sitePath}"
+	echo "Next: cd ${sitePath} && docker compose up -d"
+	echo "(Stack not started.)"
+}
+
 startStack() {
 	## Pull freshest images and start the stack
 
@@ -497,7 +560,7 @@ sanityChecks
 setupFiles
 
 ## Get options
-while getopts "habcdfkl:m:Mn:ps" opt; do
+while getopts "habcdfkl:m:Mn:N:ps" opt; do
 	case "$opt" in
 	h) # display help
 		help
@@ -563,6 +626,16 @@ while getopts "habcdfkl:m:Mn:ps" opt; do
 		else
 			echo "Creating www/${OPTARG}"
 			newSite "${OPTARG}"
+			exit 0
+		fi
+		;;
+	N) # Start a new static site, and exit
+		if [[ -z "$OPTARG" ]]; then
+			echo "Error: The -N option requires an argument (directory name)."
+			exit 1
+		else
+			echo "Creating static site www/${OPTARG}"
+			newStaticSite "${OPTARG}"
 			exit 0
 		fi
 		;;
