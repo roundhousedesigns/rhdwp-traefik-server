@@ -94,6 +94,16 @@ Minimal deploy layout (companion repo: `roundhousedesigns/rhdwp-static`):
 - **PHP-FPM vs CLI:** Web requests run in the `wp` (PHP-FPM) container; WP-CLI runs in a separate `wp-cli` container. **`PHP_BINARY` under FPM points at `php-fpm`** — unsuitable for `exec('… run-script.php …')`. Long jobs (multi-minute merges, imports) must spawn **`/usr/local/bin/php`** in a detached process inside the `wp` container, or run via `docker compose run --rm wp-cli wp …`.
 - **Do not infer FPM behavior from WP-CLI checks** (`function_exists('fastcgi_finish_request')` is false in CLI even when FPM supports it). Verify dispatch artifacts (`merge-logs/cli-dispatch.log`, job option status, heartbeats) from the **web-initiated** path.
 
+## Destructive session mutations (WooCommerce carts)
+
+Across WP stacks, when a form or handler **replaces** cart/session state (not appends):
+
+1. **Validate first** — build the new payload; if nothing is valid, leave the existing cart untouched.
+2. **Snapshot before clear** — e.g. `WC()->session->get( 'cart' )` before `empty_cart()`.
+3. **Commit, then verify** — after adds/updates, if the commit produced **zero** successes, restore the snapshot (`session->set( 'cart', … )` + `WC()->cart->get_cart_from_session()`).
+4. **Re-entry UIs** — after POST→redirect (e.g. to checkout), browser Back often shows a fresh GET with hardcoded empty defaults. Seed controls from session/server state; do not rely on bfcache.
+5. **UI honesty** — notices that say selections are “shown below” must only reflect items the UI actually renders.
+
 ## Debug / runtime logging (Docker WordPress stacks)
 
 - Site files are mounted into the `wp` container as `/var/www/html` (`ABSPATH`). Host paths like `/srv/rhdwp/www/.../site_files/...` do **not** exist inside the container.
