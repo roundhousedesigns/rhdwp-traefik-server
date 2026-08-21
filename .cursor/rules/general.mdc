@@ -104,6 +104,15 @@ Across WP stacks, when a form or handler **replaces** cart/session state (not ap
 4. **Re-entry UIs** — after POST→redirect (e.g. to checkout), browser Back often shows a fresh GET with hardcoded empty defaults. Seed controls from session/server state; do not rely on bfcache.
 5. **UI honesty** — notices that say selections are “shown below” must only reflect items the UI actually renders.
 
+## Filtered admin forms that save option maps
+
+Across WP stacks, when an admin UI lists selectable rows (checkboxes) with **search/filter** and saves into a site option:
+
+- Unchecked boxes are absent from POST. Rebuilding the whole option from only checked IDs on a filtered view **silently deletes** rows that were not rendered.
+- Post a `visible_ids[]` (or equivalent) for every row shown on that submit. Merge: remove visible-but-unchecked keys, upsert checked keys, leave keys not in `visible_ids` unchanged.
+- When excluding entities from a public list, store a display label snapshot with each ID so staff can un-flag after the entity leaves the live dataset.
+- For cached public payloads, enforce exclusions on both the write/transform path and the read path so removal is immediate even if a stale cache remains briefly.
+
 ## Debug / runtime logging (Docker WordPress stacks)
 
 - Site files are mounted into the `wp` container as `/var/www/html` (`ABSPATH`). Host paths like `/srv/rhdwp/www/.../site_files/...` do **not** exist inside the container.
