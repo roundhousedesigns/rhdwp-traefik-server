@@ -26,6 +26,7 @@ services:
       - --entrypoints.https.asDefault=true
       - --entrypoints.https.http3=true
       - --entrypoints.https.http3.advertisedPort=443
+      - --entrypoints.metrics.address=:8082
       ## RHDWP: Adminer ##
       # - --entrypoints.adminer.address=:8000
       ## RHDWP: Adminer end ##
@@ -35,6 +36,12 @@ services:
       - --providers.docker.endpoint=unix:///var/run/docker.sock
       - --providers.docker.exposedbydefault=false
       - --providers.docker.watch=true
+      # Metrics (Prometheus)
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entryPoint=metrics
+      - --metrics.prometheus.addEntryPointsLabels=true
+      - --metrics.prometheus.addRoutersLabels=true
+      - --metrics.prometheus.addServicesLabels=true
       ## RHDWP: API ##
       # - --api.insecure=true
       ## RHDWP: API end ##
@@ -63,9 +70,19 @@ services:
       # - --certificatesresolvers.http.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory
       ## RHDWP: Cert staging end ##
     labels:
+      - "traefik.enable=true"
       - "traefik.tls.stores.default.defaultGeneratedCert.resolver=http"
       - "traefik.http.middlewares.service-retry.retry.attempts=4"
       - "traefik.http.middlewares.forward-headers.forwardauth.trustForwardHeader=true"
+
+      # Expose Prometheus metrics at https://${FQDN}/metrics
+      - "traefik.http.routers.metrics.entrypoints=https"
+      - "traefik.http.routers.metrics.rule=Host(`${FQDN}`) && Path(`/metrics`)"
+      - "traefik.http.routers.metrics.tls=true"
+      - "traefik.http.routers.metrics.tls.certresolver=cloudflare"
+      - "traefik.http.routers.metrics.middlewares=security-headers@file"
+      - "traefik.http.routers.metrics.service=metrics"
+      - "traefik.http.services.metrics.loadbalancer.server.url=http://127.0.0.1:8082"
 
       ## RHDWP: Buffering ##
       # - "traefik.https.middlewares.limit.buffering.maxRequestBodyBytes=4000000000"
