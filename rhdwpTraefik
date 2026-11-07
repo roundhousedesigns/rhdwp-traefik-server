@@ -162,7 +162,8 @@ writeEnv() {
 		exit 1
 	fi
 
-	local _grafana_admin_password_quoted
+	local _grafana_admin_user_quoted _grafana_admin_password_quoted
+	_grafana_admin_user_quoted=$(dotenv_quote "$GRAFANA_ADMIN_USER")
 	_grafana_admin_password_quoted=$(dotenv_quote "$GRAFANA_ADMIN_PASSWORD")
 
 	cat <<-EOT >"$envFile"
@@ -176,7 +177,7 @@ writeEnv() {
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
 		LOGLEVEL=$LOGLEVEL
 		DASHBOARD_AUTH=$DASHBOARD_AUTH
-		GRAFANA_ADMIN_USER=$GRAFANA_ADMIN_USER
+		GRAFANA_ADMIN_USER=${_grafana_admin_user_quoted}
 		GRAFANA_ADMIN_PASSWORD=${_grafana_admin_password_quoted}
 	EOT
 
