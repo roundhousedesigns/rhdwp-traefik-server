@@ -1,9 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 # Grafana reads GF_SECURITY_ADMIN_PASSWORD only while creating the admin user.
 # After that, traefik/.env can change and the sqlite user keeps the old secret.
 # Reset user id 1 from the current env before serving, then align the login
 # when the account is still the original admin or GRAFANA_ADMIN_USER.
-set -euo pipefail
+# The Grafana image is Alpine and has /bin/sh, not bash.
+set -eu
 
 home_dir="${GF_PATHS_HOME:-/usr/share/grafana}"
 config_path="${GF_PATHS_CONFIG:-/etc/grafana/grafana.ini}"
@@ -14,7 +15,7 @@ password="${GF_SECURITY_ADMIN_PASSWORD:-}"
 desired_user="${GF_SECURITY_ADMIN_USER:-admin}"
 db_file="${data_dir}/grafana.db"
 
-if [[ -z "$password" ]]; then
+if [ -z "$password" ]; then
 	echo "GF_SECURITY_ADMIN_PASSWORD is empty; not starting Grafana." >&2
 	exit 1
 fi
@@ -24,9 +25,10 @@ json_escape() {
 }
 
 json_field() {
-	local json=$1 key=$2 line
-	line=$(printf '%s' "$json" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p") || return 1
-	printf '%s' "${line%%$'\n'*}"
+	json=$1
+	key=$2
+	line=$(printf '%s' "$json" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | sed -n '1p') || return 1
+	printf '%s' "$line"
 }
 
 basic_auth() {
@@ -34,7 +36,6 @@ basic_auth() {
 }
 
 reset_admin_password() {
-	local output
 	output=$(
 		printf '%s\n' "$password" | grafana cli \
 			--homepath "$home_dir" \
@@ -53,15 +54,15 @@ auth_header() {
 }
 
 api_get_user() {
-	local user=$1
-	curl -sS -f -H "$(auth_header "$user")" "http://${addr}:${port}/api/user"
+	curl -sS -f -H "$(auth_header "$1")" "http://${addr}:${port}/api/user"
 }
 
 sync_admin_login() {
-	local auth_user response login email name code
+	auth_user=""
+	response=""
 	if response=$(api_get_user "$desired_user" 2>/dev/null); then
 		auth_user=$desired_user
-	elif [[ "$desired_user" != "admin" ]] && response=$(api_get_user admin 2>/dev/null); then
+	elif [ "$desired_user" != "admin" ] && response=$(api_get_user admin 2>/dev/null); then
 		auth_user=admin
 	else
 		echo "Grafana admin password was reset for user id 1, but the login is not ${desired_user}." >&2
@@ -69,13 +70,13 @@ sync_admin_login() {
 	fi
 
 	login=$(json_field "$response" login)
-	if [[ "$login" == "$desired_user" ]]; then
+	if [ "$login" = "$desired_user" ]; then
 		return 0
 	fi
 
 	email=$(json_field "$response" email)
 	name=$(json_field "$response" name)
-	if [[ -z "$email" ]]; then
+	if [ -z "$email" ]; then
 		echo "Could not read the Grafana admin profile to rename ${login} to ${desired_user}." >&2
 		return 0
 	fi
@@ -88,7 +89,7 @@ sync_admin_login() {
 			--data-binary "{\"login\":\"$(json_escape "$desired_user")\",\"email\":\"$(json_escape "$email")\",\"name\":\"$(json_escape "$name")\"}" \
 			"http://${addr}:${port}/api/admin/users/1"
 	) || return 0
-	if [[ "$code" != "200" ]]; then
+	if [ "$code" != "200" ]; then
 		echo "Grafana kept admin login ${login}. Renaming it to ${desired_user} returned HTTP ${code}." >&2
 		return 0
 	fi
@@ -96,8 +97,9 @@ sync_admin_login() {
 }
 
 wait_for_grafana() {
-	local i
-	for i in $(seq 1 60); do
+	i=0
+	while [ "$i" -lt 60 ]; do
+		i=$((i + 1))
 		if curl -sf "http://${addr}:${port}/api/health" >/dev/null; then
 			return 0
 		fi
@@ -111,7 +113,7 @@ wait_for_grafana() {
 	return 0
 }
 
-if [[ -f "$db_file" ]]; then
+if [ -f "$db_file" ]; then
 	reset_admin_password
 	/run.sh "$@" &
 	server_pid=$!

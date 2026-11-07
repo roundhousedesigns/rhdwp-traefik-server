@@ -63,7 +63,8 @@ services:
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/mission-control.json
     # GF_SECURITY_ADMIN_* is only read when the admin user is created. The
     # entrypoint copies the current env into the existing sqlite user on start.
-    entrypoint: ["/bin/bash", "/etc/grafana/entrypoint.sh"]
+    # The image is Alpine and does not ship bash.
+    entrypoint: ["/bin/sh", "/etc/grafana/entrypoint.sh"]
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/entrypoint.sh:/etc/grafana/entrypoint.sh:ro
