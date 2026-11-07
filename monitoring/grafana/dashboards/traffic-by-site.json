@@ -1,0 +1,269 @@
+{
+  "uid": "traffic-by-site",
+  "title": "Traffic by site",
+  "description": "Request rate and bytes for each WordPress router, plus entrypoint open connections.",
+  "tags": [
+    "rhdwp",
+    "traefik"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "annotations": {
+    "list": []
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "router",
+        "label": "Router",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(traefik_router_requests_total{router=~\".*_apache-secure.*\"}, router)",
+        "query": {
+          "query": "label_values(traefik_router_requests_total{router=~\".*_apache-secure.*\"}, router)",
+          "refId": "StandardVariableQuery"
+        },
+        "includeAll": true,
+        "allValue": ".*_apache-secure.*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "skipUrlSync": false,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Mission control",
+      "type": "link",
+      "url": "/d/mission-control",
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Errors and latency",
+      "type": "link",
+      "url": "/d/errors-and-latency",
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Containers",
+      "type": "link",
+      "url": "/d/containers",
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "RHDWP Traefik",
+      "type": "link",
+      "url": "/d/rhdwp-traefik",
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request rate",
+      "description": "Requests per second for the selected *_apache-secure routers.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (router) (rate(traefik_router_requests_total{router=~\"${router:regex}\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{router}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Bytes",
+      "description": "Request and response bytes per second. Traefik v3.6 publishes both counters on the router.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (router) (rate(traefik_router_requests_bytes_total{router=~\"${router:regex}\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{router}} in"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (router) (rate(traefik_router_responses_bytes_total{router=~\"${router:regex}\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{router}} out"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Open connections",
+      "description": "Traefik v3.6 exposes traefik_open_connections by entrypoint and protocol only. There is no per-router in-flight gauge, so this panel ignores the router variable.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (entrypoint, protocol) (traefik_open_connections{entrypoint=~\"http|https\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{entrypoint}} {{protocol}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

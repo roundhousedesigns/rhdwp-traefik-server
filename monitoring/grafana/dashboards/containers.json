@@ -1,0 +1,276 @@
+{
+  "uid": "containers",
+  "title": "Containers",
+  "description": "cAdvisor CPU, memory, and restarts for traefik, apache, wp, and mysql.",
+  "tags": [
+    "rhdwp",
+    "traefik"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "annotations": {
+    "list": []
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "container",
+        "label": "Container",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(container_last_seen{name=~\"^(traefik|apache|wp|mysql|.+[-_]apache[-_][0-9]+|.+[-_]wp[-_][0-9]+|.+[-_]mysql[-_][0-9]+)$\"}, name)",
+        "query": {
+          "query": "label_values(container_last_seen{name=~\"^(traefik|apache|wp|mysql|.+[-_]apache[-_][0-9]+|.+[-_]wp[-_][0-9]+|.+[-_]mysql[-_][0-9]+)$\"}, name)",
+          "refId": "StandardVariableQuery"
+        },
+        "includeAll": true,
+        "allValue": "^(traefik|apache|wp|mysql|.+[-_]apache[-_][0-9]+|.+[-_]wp[-_][0-9]+|.+[-_]mysql[-_][0-9]+)$",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "skipUrlSync": false,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Mission control",
+      "type": "link",
+      "url": "/d/mission-control",
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Traffic by site",
+      "type": "link",
+      "url": "/d/traffic-by-site",
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Errors and latency",
+      "type": "link",
+      "url": "/d/errors-and-latency",
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "RHDWP Traefik",
+      "type": "link",
+      "url": "/d/rhdwp-traefik",
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "CPU",
+      "description": "CPU cores. cAdvisor emits either a total series or per-CPU series; both are summed by container name.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"${container:regex}\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Memory vs limit",
+      "description": "Working set against the Docker memory limit. Containers with no limit have no limit series.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "container_memory_working_set_bytes{name=~\"${container:regex}\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{name}} usage"
+        },
+        {
+          "refId": "B",
+          "expr": "container_spec_memory_limit_bytes{name=~\"${container:regex}\"} > 0",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{name}} limit"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "bargauge",
+      "title": "Restarts",
+      "description": "Times the container start time changed during the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (name) (changes(container_start_time_seconds{name=~\"${container:regex}\"}[$__range]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{name}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      }
+    }
+  ]
+}
