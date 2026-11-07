@@ -26,6 +26,18 @@ services:
       - --entrypoints.https.asDefault=true
       - --entrypoints.https.http3=true
       - --entrypoints.https.http3.advertisedPort=443
+      # Prometheus on localhost. Spelling matches `traefik v3.6.2 --help`
+      # (metrics.prometheus, metrics.prometheus.entrypoint,
+      # metrics.prometheus.addentrypointslabels, addrouterslabels, addserviceslabels).
+      # Router labels default off; entrypoint and service labels default on.
+      # The metrics entrypoint does not record its own scrapes.
+      - --entrypoints.metrics.address=127.0.0.1:8082
+      - --entrypoints.metrics.observability.metrics=false
+      - --metrics.prometheus=true
+      - --metrics.prometheus.entrypoint=metrics
+      - --metrics.prometheus.addentrypointslabels=true
+      - --metrics.prometheus.addrouterslabels=true
+      - --metrics.prometheus.addserviceslabels=true
       ## RHDWP: Adminer ##
       # - --entrypoints.adminer.address=:8000
       ## RHDWP: Adminer end ##
