@@ -24,3 +24,4 @@ rhdwp-traefik-server
 1/9/2022		Switched whoami for small nginx server to handle ACME availability and web redirection
 11/7/2026		Traefik v3.6 Prometheus metrics on 127.0.0.1:8082. Separate monitoring project (Prometheus, cAdvisor, Grafana) with a provisioned per-site dashboard at the host FQDN. Grafana password is generated into traefik/.env. Stop leaves monitoring volumes in place.
 11/7/2026		Preset Grafana dashboards: Mission control (home), Traffic by site, Errors and latency, and Containers.
+11/7/2026		Quote GRAFANA_ADMIN_PASSWORD in traefik/.env so a restart keeps spaces and quotation marks.

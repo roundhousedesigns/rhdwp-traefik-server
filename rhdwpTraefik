@@ -132,6 +132,17 @@ askEnv() {
 	fi
 }
 
+dotenv_quote() {
+	## Single-quote a dotenv value. setupFiles sources traefik/.env, which
+	## consumes surrounding quotes, and writeEnv used to write the raw value
+	## back. Spaces and quotation marks in the password then disappeared on
+	## the next restart. Embedded single quotes are written as '\''.
+	local value=$1
+	local sq="'"
+	local escaped=${value//$sq/$sq\\$sq$sq}
+	printf "%s%s%s" "$sq" "$escaped" "$sq"
+}
+
 writeEnv() {
 	## Write to .env and lock it down
 
@@ -151,6 +162,9 @@ writeEnv() {
 		exit 1
 	fi
 
+	local _grafana_admin_password_quoted
+	_grafana_admin_password_quoted=$(dotenv_quote "$GRAFANA_ADMIN_PASSWORD")
+
 	cat <<-EOT >"$envFile"
 		FQDN=$FQDN
 		HOSTNAME=$HOSTNAME
@@ -163,7 +177,7 @@ writeEnv() {
 		LOGLEVEL=$LOGLEVEL
 		DASHBOARD_AUTH=$DASHBOARD_AUTH
 		GRAFANA_ADMIN_USER=$GRAFANA_ADMIN_USER
-		GRAFANA_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD
+		GRAFANA_ADMIN_PASSWORD=${_grafana_admin_password_quoted}
 	EOT
 
 	sudo chown "$serverUser":"$serverGroup" "$envFile"
