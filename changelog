@@ -27,3 +27,4 @@ rhdwp-traefik-server
 11/7/2026		Quote GRAFANA_ADMIN_PASSWORD in traefik/.env so a restart keeps spaces and quotation marks.
 11/7/2026		Apply the Grafana admin password from traefik/.env on every start. The env var alone only seeds a new database.
 11/7/2026		Recreate the Grafana Prometheus datasource with uid prometheus on startup. Grafana keeps a previously stored uid, so the boards could not find it. The Grafana entrypoint uses /bin/sh.
+11/7/2026		Grafana login follows traefik/.env after the first boot. Reset the admin password before the server binds, rename the user with PUT /api/users/1, and stop a short lockout from rejecting that password.

@@ -57,8 +57,12 @@ services:
       GF_SERVER_ROOT_URL: https://${FQDN:?FQDN is required}/
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      # Quoted so a password that contains ':' or '#' survives Compose's YAML parse.
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}"
+      # grafana cli reset-admin-password does not clear login_attempt. Five
+      # failures inside five minutes then reject the password just written.
+      GF_SECURITY_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS: "100000"
       # Classic dashboard JSON. Grafana uses this file as the org home page.
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/mission-control.json
     # GF_SECURITY_ADMIN_* is only read when the admin user is created. The

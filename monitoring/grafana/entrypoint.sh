@@ -31,15 +31,18 @@ json_field() {
 	printf '%s' "$line"
 }
 
-basic_auth() {
-	printf '%s:%s' "$1" "$2" | base64 | tr -d '\n'
+fold_case() {
+	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
 reset_admin_password() {
+	# Same data directory the server uses. Without the override, `grafana cli`
+	# follows defaults.ini (`data = data`) and resets a different sqlite file.
 	output=$(
 		printf '%s\n' "$password" | grafana cli \
 			--homepath "$home_dir" \
 			--config "$config_path" \
+			--configOverrides "cfg:default.paths.data=${data_dir}" \
 			admin reset-admin-password --user-id 1 --password-from-stdin 2>&1
 	) || true
 	printf '%s\n' "$output"
@@ -49,28 +52,30 @@ reset_admin_password() {
 	fi
 }
 
-auth_header() {
-	printf 'Authorization: Basic %s' "$(basic_auth "$1" "$password")"
-}
-
-api_get_user() {
-	curl -sS -f -H "$(auth_header "$1")" "http://${addr}:${port}/api/user"
+api_login() {
+	login_code=$(
+		curl -sS -c /tmp/grafana-login.cookies -o /tmp/grafana-login.json -w '%{http_code}' \
+			-H 'Content-Type: application/json' \
+			--data-binary "{\"user\":\"$(json_escape "$1")\",\"password\":\"$(json_escape "$password")\"}" \
+			"http://${addr}:${port}/login"
+	) || return 1
+	[ "$login_code" = "200" ]
 }
 
 sync_admin_login() {
-	auth_user=""
 	response=""
-	if response=$(api_get_user "$desired_user" 2>/dev/null); then
-		auth_user=$desired_user
-	elif [ "$desired_user" != "admin" ] && response=$(api_get_user admin 2>/dev/null); then
-		auth_user=admin
+	if api_login "$desired_user"; then
+		:
+	elif [ "$(fold_case "$desired_user")" != "admin" ] && api_login admin; then
+		:
 	else
-		echo "Grafana admin password was reset for user id 1, but the login is not ${desired_user}." >&2
+		echo "Grafana admin password was reset for user id 1, but ${desired_user} could not sign in." >&2
 		return 0
 	fi
 
+	response=$(curl -sS -b /tmp/grafana-login.cookies "http://${addr}:${port}/api/user") || return 0
 	login=$(json_field "$response" login)
-	if [ "$login" = "$desired_user" ]; then
+	if [ "$(fold_case "$login")" = "$(fold_case "$desired_user")" ]; then
 		return 0
 	fi
 
@@ -81,13 +86,13 @@ sync_admin_login() {
 		return 0
 	fi
 
+	# Grafana 13 removed PUT /api/admin/users/:id. The profile update is PUT /api/users/:id.
 	code=$(
-		curl -sS -o /tmp/grafana-admin-update.json -w '%{http_code}' \
+		curl -sS -b /tmp/grafana-login.cookies -o /tmp/grafana-admin-update.json -w '%{http_code}' \
 			-X PUT \
 			-H 'Content-Type: application/json' \
-			-H "$(auth_header "$auth_user")" \
 			--data-binary "{\"login\":\"$(json_escape "$desired_user")\",\"email\":\"$(json_escape "$email")\",\"name\":\"$(json_escape "$name")\"}" \
-			"http://${addr}:${port}/api/admin/users/1"
+			"http://${addr}:${port}/api/users/1"
 	) || return 0
 	if [ "$code" != "200" ]; then
 		echo "Grafana kept admin login ${login}. Renaming it to ${desired_user} returned HTTP ${code}." >&2
