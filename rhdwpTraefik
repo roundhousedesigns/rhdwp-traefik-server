@@ -308,6 +308,12 @@ setupFiles() {
 		# shellcheck source=/srv/rhdwp/traefik/.env
 		. "$envFile"
 	fi
+	# Host identity must follow the machine. A stale traefik/.env FQDN/HOSTNAME
+	# (e.g. after a rename) otherwise points Grafana ACME + certs-dumper at a
+	# domain with no public DNS, so the host cert never appears and we fall
+	# back to Traefik's self-signed default.
+	FQDN=$(hostname -f)
+	HOSTNAME=$(hostname)
 
 	## Create sites directory
 	[[ ! -d "${wwwDir}" ]] && mkdir "${wwwDir}"
