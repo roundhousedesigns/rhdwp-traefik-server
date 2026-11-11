@@ -16,6 +16,9 @@ help() {
 	echo
 	echo 'Syntax: rhdwpTraefik [-h][-d][-f][-a][-m dirname][-n dirname][-N dirname][-s][-k]'
 	echo
+	echo 'Grafana is served at https://<host FQDN> and starts with this stack.'
+	echo 'GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD are stored in traefik/.env.'
+	echo
 	echo '  -h            Help and usage'
 	echo '  -a            Enable dashboard'
 	echo '  -b            Buffering expansion (large uploads)'
@@ -129,8 +132,39 @@ askEnv() {
 	fi
 }
 
+dotenv_quote() {
+	## Single-quote a dotenv value. setupFiles sources traefik/.env, which
+	## consumes surrounding quotes, and writeEnv used to write the raw value
+	## back. Spaces and quotation marks in the password then disappeared on
+	## the next restart. Embedded single quotes are written as '\''.
+	local value=$1
+	local sq="'"
+	local escaped=${value//$sq/$sq\\$sq$sq}
+	printf "%s%s%s" "$sq" "$escaped" "$sq"
+}
+
 writeEnv() {
 	## Write to .env and lock it down
+
+	# Keep an existing Grafana password (setupFiles sources traefik/.env).
+	# Generate one the same way this script builds other random tokens.
+	if [[ -z "${GRAFANA_ADMIN_USER}" ]]; then
+		GRAFANA_ADMIN_USER=admin
+	fi
+	if [[ -z "${GRAFANA_ADMIN_PASSWORD}" ]]; then
+		while [[ ${#GRAFANA_ADMIN_PASSWORD} -lt 32 ]]; do
+			GRAFANA_ADMIN_PASSWORD=$(head -c 256 /dev/urandom | tr -cd '[:alnum:]' | cut -c -32)
+		done
+		echo "Generated GRAFANA_ADMIN_PASSWORD in ${envFile}."
+	fi
+	if [[ -z "${GRAFANA_ADMIN_PASSWORD}" ]]; then
+		echo "Error: could not generate GRAFANA_ADMIN_PASSWORD."
+		exit 1
+	fi
+
+	local _grafana_admin_user_quoted _grafana_admin_password_quoted
+	_grafana_admin_user_quoted=$(dotenv_quote "$GRAFANA_ADMIN_USER")
+	_grafana_admin_password_quoted=$(dotenv_quote "$GRAFANA_ADMIN_PASSWORD")
 
 	cat <<-EOT >"$envFile"
 		FQDN=$FQDN
@@ -143,6 +177,8 @@ writeEnv() {
 		DEV_SMTP_FROM=$DEV_SMTP_FROM
 		LOGLEVEL=$LOGLEVEL
 		DASHBOARD_AUTH=$DASHBOARD_AUTH
+		GRAFANA_ADMIN_USER=${_grafana_admin_user_quoted}
+		GRAFANA_ADMIN_PASSWORD=${_grafana_admin_password_quoted}
 	EOT
 
 	sudo chown "$serverUser":"$serverGroup" "$envFile"
@@ -445,6 +481,39 @@ EOF
 	echo "(Stack not started.)"
 }
 
+startMonitoring() {
+	## Separate Compose project so Traefik's `down -v` cannot drop its data.
+	local composeFile="${rootDir}/monitoring/docker-compose.yml"
+
+	if [[ ! -f "$composeFile" ]]; then
+		echo "Monitoring compose file not found, skipping."
+		return 0
+	fi
+
+	(
+		cd "$rootDir"
+		export FQDN GRAFANA_ADMIN_USER GRAFANA_ADMIN_PASSWORD
+		docker compose -f monitoring/docker-compose.yml up -d
+	)
+}
+
+stopMonitoring() {
+	## Stop Prometheus, cAdvisor, and Grafana without deleting volumes.
+	local composeFile="${rootDir}/monitoring/docker-compose.yml"
+
+	if [[ ! -f "$composeFile" ]]; then
+		return 0
+	fi
+
+	# Compose still interpolates ${FQDN:?...} on down. setupFiles has sourced
+	# traefik/.env into this shell; export so the child process can see it.
+	(
+		cd "$rootDir"
+		export FQDN GRAFANA_ADMIN_USER GRAFANA_ADMIN_PASSWORD
+		docker compose -f monitoring/docker-compose.yml down --remove-orphans
+	)
+}
+
 startStack() {
 	## Pull freshest images and start the stack
 
@@ -482,10 +551,17 @@ startStack() {
 			fi
 		done
 	)
+
+	startMonitoring
 }
 
 stopStack() {
-	## Stop the main traefik stack and clean up
+	## Stop the main traefik stack and clean up.
+	## Monitoring is stopped without -v so Prometheus and Grafana volumes remain.
+	if ! stopMonitoring; then
+		echo "Warning: monitoring stack did not stop. Traefik stop will continue."
+	fi
+
 	(cd "$traefikDir" && docker compose down --remove-orphans -v)
 
 	# Remove the certs.yml file.

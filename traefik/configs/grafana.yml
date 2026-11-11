@@ -1,0 +1,25 @@
+# Host Grafana route. The file provider expands env "FQDN" from the Traefik
+# container, same mechanism as certs.yml. Prometheus, cAdvisor, and the
+# metrics entrypoint are not routed; they stay on localhost.
+http:
+  routers:
+    grafana:
+      entryPoints:
+        - http
+      rule: 'Host(`{{ env "FQDN" }}`)'
+      middlewares:
+        - https-redirect@file
+      service: grafana
+    grafana-secure:
+      entryPoints:
+        - https
+      rule: 'Host(`{{ env "FQDN" }}`)'
+      tls:
+        certResolver: http
+      service: grafana
+  services:
+    grafana:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: http://127.0.0.1:3000

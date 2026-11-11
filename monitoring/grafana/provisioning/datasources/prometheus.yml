@@ -1,0 +1,24 @@
+apiVersion: 1
+
+# Grafana looks an existing datasource up by id and uid together, then keeps
+# the uid already stored. A row created before this uid existed (generated uid,
+# or a name-only add) is never rewritten, and every board asks for `prometheus`.
+# Delete those names first so the insert below is a new row with that uid.
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+  - name: prometheus
+    orgId: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    orgId: 1
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST

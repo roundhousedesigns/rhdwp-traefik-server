@@ -22,3 +22,9 @@ rhdwp-traefik-server
 12/21/2021	Default host cert generation for use with Traefik, using traefik/whoami and traefik-cert-dump
 1/8/2022		Error logging to file with command line option; Switched to custom nginx server and JS redirection (not great)
 1/9/2022		Switched whoami for small nginx server to handle ACME availability and web redirection
+11/7/2026		Traefik v3.6 Prometheus metrics on 127.0.0.1:8082. Separate monitoring project (Prometheus, cAdvisor, Grafana) with a provisioned per-site dashboard at the host FQDN. Grafana password is generated into traefik/.env. Stop leaves monitoring volumes in place.
+11/7/2026		Preset Grafana dashboards: Mission control (home), Traffic by site, Errors and latency, and Containers.
+11/7/2026		Quote GRAFANA_ADMIN_PASSWORD in traefik/.env so a restart keeps spaces and quotation marks.
+11/7/2026		Apply the Grafana admin password from traefik/.env on every start. The env var alone only seeds a new database.
+11/7/2026		Recreate the Grafana Prometheus datasource with uid prometheus on startup. Grafana keeps a previously stored uid, so the boards could not find it. The Grafana entrypoint uses /bin/sh.
+11/7/2026		Grafana login follows traefik/.env after the first boot. Reset the admin password before the server binds, rename the user with PUT /api/users/1, and stop a short lockout from rejecting that password.
