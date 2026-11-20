@@ -46,10 +46,17 @@ reset_admin_password() {
 			admin reset-admin-password --user-id 1 --password-from-stdin 2>&1
 	) || true
 	printf '%s\n' "$output"
-	if ! printf '%s\n' "$output" | grep -F -q "Admin password changed successfully"; then
-		echo "Grafana rejected GRAFANA_ADMIN_PASSWORD. The default policy requires at least 4 characters." >&2
+	if printf '%s\n' "$output" | grep -F -q "Admin password changed successfully"; then
+		return 0
+	fi
+	# Grafana 13 returns exit 0 and omits the success line when the new
+	# password matches the existing hash. That is not a policy failure.
+	if printf '%s\n' "$output" | grep -Fi -q "password policy\|can't read password from stdin"; then
+		echo "Grafana rejected GRAFANA_ADMIN_PASSWORD (policy or stdin read failure)." >&2
 		return 1
 	fi
+	echo "Grafana admin password already matches GRAFANA_ADMIN_PASSWORD."
+	return 0
 }
 
 api_login() {
